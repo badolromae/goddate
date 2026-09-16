@@ -1,0 +1,298 @@
+/* ============================================
+   공지사항 앱 — 니들펠트/양모 러블리 스타일
+   업로드 이미지의 코발트 블루 + 펠트 질감 재현
+   ============================================ */
+
+:root {
+  /* 펠트 이미지에서 뽑은 팔레트 */
+  --felt-blue:      #2b57d4;   /* 배경 코발트 블루 */
+  --felt-blue-deep: #1f3fa8;   /* 그림자 진한 블루 */
+  --felt-sky:       #7fb0f5;   /* 밝은 하늘 니트 */
+  --felt-cream:     #fbf6ec;   /* 카드 크림색 (양모) */
+  --felt-peach:     #f0a869;   /* 화분/의자 주황 */
+  --felt-coral:     #e8703f;   /* 진한 코랄 꽃 */
+  --felt-pink:      #f4d7c4;   /* 부드러운 살구핑크 */
+  --felt-ink:       #3a3730;   /* 부드러운 먹색 글자 */
+  --felt-white:     #fdfbf7;   /* 데이지 흰색 */
+
+  --radius-lg: 28px;
+  --radius-md: 20px;
+  --radius-sm: 14px;
+
+  --shadow-soft: 0 10px 30px rgba(20, 40, 110, 0.28);
+  --shadow-card: 0 6px 18px rgba(20, 40, 110, 0.22);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  font-family: 'Gaegu', system-ui, sans-serif;
+  color: var(--felt-ink);
+  min-height: 100vh;
+  min-height: 100dvh;
+  position: relative;
+  overflow-x: hidden;
+
+  /* 펠트 배경: 코발트 블루 + 미세한 양모 질감 */
+  background-color: var(--felt-blue);
+  background-image:
+    radial-gradient(circle at 20% 15%, rgba(127,176,245,0.22), transparent 42%),
+    radial-gradient(circle at 82% 70%, rgba(31,63,168,0.45), transparent 48%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+  background-attachment: fixed;
+}
+
+/* ---------- 배경 장식 ---------- */
+.bg-decor { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+
+/* 전구 줄 */
+.lights {
+  position: absolute; top: 0; left: -5%; right: -5%;
+  height: 60px;
+  display: flex; justify-content: space-around; align-items: flex-start;
+}
+.lights::before {
+  content: ""; position: absolute; top: 14px; left: 0; right: 0; height: 3px;
+  background: rgba(20,40,110,0.5);
+  border-radius: 3px;
+}
+.lights span {
+  width: 14px; height: 14px; border-radius: 50%;
+  margin-top: 18px;
+  background: radial-gradient(circle at 35% 30%, #fff6d6, var(--felt-peach));
+  box-shadow: 0 0 12px rgba(255,225,150,0.75);
+  animation: glow 3s ease-in-out infinite;
+}
+.lights span:nth-child(even) { animation-delay: 1.5s; margin-top: 22px; }
+.lights span:nth-child(3n) { animation-delay: 0.8s; }
+@keyframes glow {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.12); }
+}
+
+/* 펠트 꽃 */
+.flower, .daisy { position: absolute; user-select: none; }
+.flower {
+  font-size: 60px; color: var(--felt-coral);
+  text-shadow: 0 3px 0 rgba(20,40,110,0.25);
+}
+.flower--tl { top: 120px; left: -14px; transform: rotate(-12deg); }
+.flower--tr { top: 200px; right: -12px; color: var(--felt-peach); transform: rotate(15deg); }
+.daisy { font-size: 26px; color: var(--felt-white); opacity: 0.85; }
+.daisy--1 { top: 90px;  right: 40px; }
+.daisy--2 { top: 320px; left: 26px; }
+.daisy--3 { bottom: 120px; right: 30px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lights span { animation: none; }
+}
+
+/* ---------- 앱 컨테이너 ---------- */
+.app {
+  position: relative; z-index: 1;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 72px 20px 40px;
+  padding-top: calc(72px + env(safe-area-inset-top));
+}
+
+/* ---------- 헤더 ---------- */
+.header { text-align: center; margin-bottom: 30px; }
+.header__badge {
+  width: 92px; height: 92px; margin: 0 auto 14px;
+  background: var(--felt-cream);
+  border-radius: 50%;
+  display: grid; place-items: center;
+  box-shadow: var(--shadow-soft), inset 0 -4px 8px rgba(20,40,110,0.08);
+  border: 3px solid var(--felt-white);
+}
+.header__mug { font-size: 46px; }
+.header__title {
+  font-family: 'Jua', sans-serif;
+  font-size: 40px; color: var(--felt-white);
+  text-shadow: 0 3px 0 var(--felt-blue-deep), 0 4px 8px rgba(0,0,0,0.2);
+  letter-spacing: 1px;
+}
+.header__subtitle {
+  font-size: 20px; color: var(--felt-pink);
+  margin-top: 4px;
+}
+
+/* ---------- 공지 보드 ---------- */
+.board { display: flex; flex-direction: column; gap: 18px; }
+
+.card {
+  position: relative;
+  background: var(--felt-cream);
+  border-radius: var(--radius-lg);
+  padding: 22px 22px 20px;
+  box-shadow: var(--shadow-card);
+  border: 2px solid var(--felt-white);
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  overflow: hidden;
+}
+.card:active { transform: scale(0.98); }
+@media (hover: hover) {
+  .card:hover { transform: translateY(-3px); box-shadow: var(--shadow-soft); }
+}
+
+/* 펠트 스티치 테두리 느낌 */
+.card::before {
+  content: ""; position: absolute; inset: 7px;
+  border: 2px dashed rgba(240,168,105,0.45);
+  border-radius: calc(var(--radius-lg) - 8px);
+  pointer-events: none;
+}
+
+/* 중요 공지 핀 */
+.card__pin {
+  position: absolute; top: 14px; right: 16px;
+  font-size: 22px;
+}
+
+.card__date {
+  font-size: 16px; color: var(--felt-peach); font-weight: 700;
+  margin-bottom: 4px;
+}
+.card__title {
+  font-family: 'Jua', sans-serif;
+  font-size: 23px; color: var(--felt-ink);
+  line-height: 1.3; margin-bottom: 8px;
+  padding-right: 20px;
+}
+.card__preview {
+  font-size: 18px; color: #6b6455; line-height: 1.5;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.card__more {
+  display: inline-block; margin-top: 10px;
+  font-size: 16px; color: var(--felt-blue); font-weight: 700;
+}
+
+/* 새 공지 리본 */
+.card--new .card__ribbon {
+  position: absolute; top: 12px; left: -30px;
+  background: var(--felt-coral); color: #fff;
+  font-family: 'Jua', sans-serif; font-size: 13px;
+  padding: 4px 34px; transform: rotate(-38deg);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+/* ---------- 스켈레톤 로딩 ---------- */
+.skeleton { display: flex; flex-direction: column; gap: 18px; }
+.skeleton__card {
+  height: 120px; border-radius: var(--radius-lg);
+  background: linear-gradient(100deg,
+    rgba(251,246,236,0.55) 30%,
+    rgba(251,246,236,0.85) 50%,
+    rgba(251,246,236,0.55) 70%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ---------- 빈 상태 ---------- */
+.empty {
+  text-align: center; padding: 50px 20px;
+  color: var(--felt-white);
+}
+.empty__emoji { font-size: 56px; display: block; margin-bottom: 12px; }
+.empty__text { font-size: 20px; opacity: 0.9; }
+
+/* ---------- 소통(카페) ---------- */
+.talk { margin-top: 34px; text-align: center; }
+.talk__label { color: var(--felt-white); font-size: 19px; margin-bottom: 12px; }
+.talk__btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--felt-peach);
+  color: #fff; text-decoration: none;
+  font-family: 'Jua', sans-serif; font-size: 20px;
+  padding: 15px 28px; border-radius: 999px;
+  box-shadow: var(--shadow-card), inset 0 -3px 0 rgba(180,90,30,0.35);
+  border: 2px solid var(--felt-white);
+  transition: transform 0.15s ease;
+}
+.talk__btn:active { transform: scale(0.96); }
+@media (hover: hover) { .talk__btn:hover { transform: translateY(-2px); } }
+.talk__icon { font-size: 22px; }
+
+/* ---------- 푸터 ---------- */
+.footer {
+  margin-top: 40px; text-align: center;
+  color: var(--felt-pink); font-size: 17px;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* ---------- 모달 ---------- */
+.modal { position: fixed; inset: 0; z-index: 50; display: grid; place-items: end center; }
+.modal[hidden] { display: none; }
+.modal__backdrop {
+  position: absolute; inset: 0;
+  background: rgba(15,30,90,0.55);
+  backdrop-filter: blur(2px);
+  animation: fade 0.2s ease;
+}
+.modal__sheet {
+  position: relative; width: 100%; max-width: 560px;
+  max-height: 88vh; overflow-y: auto;
+  background: var(--felt-cream);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 34px 26px calc(34px + env(safe-area-inset-bottom));
+  box-shadow: 0 -10px 40px rgba(0,0,0,0.3);
+  border-top: 3px solid var(--felt-white);
+  animation: slideUp 0.28s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+@media (min-width: 600px) {
+  .modal { place-items: center; }
+  .modal__sheet { border-radius: var(--radius-lg); max-height: 84vh; }
+}
+@keyframes slideUp { from { transform: translateY(40px); opacity: 0.4; } to { transform: translateY(0); opacity: 1; } }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
+.modal__pin {
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--felt-coral);
+  margin: 0 auto 14px;
+  box-shadow: inset 0 -2px 4px rgba(0,0,0,0.2);
+}
+.modal__close {
+  position: absolute; top: 16px; right: 16px;
+  width: 38px; height: 38px; border-radius: 50%;
+  border: none; background: var(--felt-pink); color: var(--felt-ink);
+  font-size: 17px; cursor: pointer;
+}
+.modal__date { color: var(--felt-peach); font-weight: 700; font-size: 17px; margin-bottom: 4px; }
+.modal__title {
+  font-family: 'Jua', sans-serif; font-size: 27px;
+  line-height: 1.35; margin-bottom: 16px; color: var(--felt-ink);
+}
+.modal__body {
+  font-size: 19px; line-height: 1.7; color: #4a4439;
+  white-space: pre-wrap; word-break: break-word;
+}
+.modal__body img { max-width: 100%; border-radius: var(--radius-sm); margin: 12px 0; }
+
+/* ---------- 설치 힌트 ---------- */
+.install-hint {
+  position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 60;
+  background: var(--felt-white);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  box-shadow: var(--shadow-soft);
+  font-size: 17px; color: var(--felt-ink);
+  max-width: 560px; margin: 0 auto;
+  animation: slideUp 0.4s ease;
+}
+.install-hint[hidden] { display: none; }
+.install-hint button {
+  border: none; background: var(--felt-pink); color: var(--felt-ink);
+  width: 30px; height: 30px; border-radius: 50%; cursor: pointer; flex-shrink: 0;
+}

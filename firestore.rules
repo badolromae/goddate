@@ -1,0 +1,26 @@
+rules_version = '2';
+
+// ============================================
+//  Firestore 보안 규칙
+//  - 공지(notices): 누구나 읽기 가능 / 로그인한 사람만 쓰기·삭제
+//    (관리자 계정만 로그인할 수 있으므로 사실상 관리자 전용)
+// ============================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /notices/{noticeId} {
+      // 누구나 공지를 볼 수 있어요 (로그인 없이도)
+      allow read: if true;
+
+      // 로그인한 사용자만 공지를 올리거나 지울 수 있어요
+      // 관리자 이메일/비번은 본인만 알고 있으므로 관리자 전용이 됩니다.
+      allow create, update, delete: if request.auth != null;
+    }
+
+    // 그 외 모든 문서는 기본 차단
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
