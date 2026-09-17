@@ -38,7 +38,8 @@ async function start() {
   }
 
   const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
-  const { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } =
+  const { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
+          setPersistence, browserLocalPersistence, browserSessionPersistence } =
     await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js");
   const {
     getFirestore, collection, addDoc, updateDoc, deleteDoc, doc,
@@ -66,8 +67,12 @@ async function start() {
   $("loginBtn").addEventListener("click", async () => {
     const email = $("email").value.trim();
     const pw = $("password").value;
+    const keep = $("keepLogin").checked;
     if (!email || !pw) return showMsg($("loginMsg"), "이메일과 비밀번호를 입력하세요.", false);
     try {
+      // 자동 로그인 체크 → 이 기기에 계속 로그인 유지(local)
+      // 체크 안 함 → 창/앱을 닫으면 자동 로그아웃(session)
+      await setPersistence(auth, keep ? browserLocalPersistence : browserSessionPersistence);
       await signInWithEmailAndPassword(auth, email, pw);
     } catch (e) {
       showMsg($("loginMsg"), "로그인에 실패했어요. 정보를 확인해주세요.", false);

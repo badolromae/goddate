@@ -4,7 +4,7 @@
 //  (공지 데이터는 항상 최신을 불러옵니다)
 // ============================================
 
-const CACHE_NAME = "notice-app-v3";
+const CACHE_NAME = "notice-app-v4";
 const ASSETS = [
   "./",
   "./index.html",
@@ -14,6 +14,11 @@ const ASSETS = [
   "./manifest.json",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
+  "./admin.html",
+  "./admin.js",
+  "./admin-manifest.json",
+  "./icons/admin-192.png",
+  "./icons/admin-512.png",
 ];
 
 self.addEventListener("install", (e) => {
