@@ -141,7 +141,7 @@ function renderNotices(notices) {
       ${unseen ? '<span class="card__dot" title="새 공지"></span>' : ""}
       <p class="card__date">${formatDate(n.date)}</p>
       <h2 class="card__title">${escapeHtml(n.title)}</h2>
-      ${n.imageUrl ? `<img class="card__thumb" src="${encodeURI(n.imageUrl)}" alt="" loading="lazy" onerror="this.style.display='none'" />` : ""}
+      ${n.imageUrl ? `<img class="card__thumb" src="${n.imageUrl.replace(/"/g, "&quot;")}" alt="" loading="lazy" onerror="this.style.display='none'" />` : ""}
       <p class="card__preview">${escapeHtml(stripToText(n.body))}</p>
       <span class="card__more">자세히 보기 →</span>
     `;
@@ -225,20 +225,41 @@ function openModal(n, cardEl) {
   modalDate.textContent = formatDate(n.date);
   modalTitle.textContent = n.title;
 
-  // 본문 영역 초기화 후 안전하게 구성 (사진 → 글 순서)
+  // 본문 영역 초기화 후 안전하게 구성 (사진 → 글 → 링크 버튼)
   modalBody.innerHTML = "";
+
   if (n.imageUrl) {
     const img = document.createElement("img");
-    img.src = encodeURI(n.imageUrl);
+    img.src = n.imageUrl;              // Firebase 다운로드 주소를 그대로 사용
     img.alt = "";
     img.loading = "lazy";
     img.onerror = () => { img.style.display = "none"; };
     modalBody.appendChild(img);
   }
+
   const textEl = document.createElement("div");
   textEl.className = "modal__text";
-  linkify(n.body, textEl);   // 줄바꿈 유지 + 주소는 눌러지는 링크로
+  linkify(n.body, textEl);   // 줄바꿈 유지 + 본문 속 주소도 링크로
   modalBody.appendChild(textEl);
+
+  // 링크 버튼들 (관리자가 넣은 제목+주소)
+  if (Array.isArray(n.links) && n.links.length > 0) {
+    const box = document.createElement("div");
+    box.className = "modal__links";
+    n.links.forEach((lk) => {
+      if (!lk || !lk.url) return;
+      const a = document.createElement("a");
+      let url = lk.url;
+      if (!/^https?:\/\//i.test(url)) url = "https://" + url;
+      a.href = url;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.className = "link-btn";
+      a.textContent = "🔗 " + (lk.title || "링크 열기");
+      box.appendChild(a);
+    });
+    modalBody.appendChild(box);
+  }
 
   modal.hidden = false;
   document.body.style.overflow = "hidden";
@@ -284,6 +305,7 @@ async function loadNotices() {
         title: d.title || "(제목 없음)",
         body: d.body || "",
         imageUrl: d.imageUrl || "",
+        links: Array.isArray(d.links) ? d.links : [],
         date: d.date || "",
         pinned: !!d.pinned,
       });

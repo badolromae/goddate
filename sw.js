@@ -4,7 +4,7 @@
 //  (공지 데이터는 항상 최신을 불러옵니다)
 // ============================================
 
-const CACHE_NAME = "notice-app-v1";
+const CACHE_NAME = "notice-app-v3";
 const ASSETS = [
   "./",
   "./index.html",

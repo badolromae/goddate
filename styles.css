@@ -332,6 +332,24 @@ body {
 }
 .body-link:active { opacity: 0.6; }
 
+/* 공지 상세의 링크 버튼들 */
+.modal__links {
+  display: flex; flex-direction: column; gap: 10px;
+  margin-top: 18px;
+}
+.link-btn {
+  display: block; text-align: center;
+  background: var(--felt-blue); color: #fff;
+  font-family: 'Jua', sans-serif; font-size: 18px;
+  padding: 13px 18px; border-radius: 14px;
+  text-decoration: none;
+  box-shadow: var(--shadow-card), inset 0 -3px 0 rgba(20,40,110,0.35);
+  border: 2px solid var(--felt-white);
+  word-break: break-all;
+}
+.link-btn:active { transform: scale(0.97); }
+@media (hover: hover) { .link-btn:hover { filter: brightness(1.08); } }
+
 /* ---------- 설치 힌트 ---------- */
 .install-hint {
   position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 60;

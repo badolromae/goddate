@@ -43,6 +43,9 @@
     .btn-main { background:var(--peach); box-shadow:inset 0 -3px 0 rgba(180,90,30,0.35); width:100%; margin-top:18px; }
     .btn-danger { background:#d05a5a; font-size:15px; padding:8px 16px; }
     .btn-edit { background:var(--peach); font-size:15px; padding:8px 16px; }
+    .linkrow { display:flex; gap:8px; margin-bottom:8px; }
+    .linkrow .linkTitle { flex:0 0 40%; }
+    .linkrow .linkUrl { flex:1; }
     .btn-ghost { background:var(--deep); font-size:15px; padding:8px 16px; }
     .login-box { max-width:380px; margin:60px auto; }
     .hidden { display:none !important; }
@@ -99,6 +102,21 @@
           💡 휴대폰이나 컴퓨터에서 사진 파일을 고르면 공지에 함께 올라가요.
         </p>
         <div id="imgPreview" style="margin-top:10px;"></div>
+
+        <label>링크 버튼 <span style="font-weight:400;font-size:15px;color:#8a8272;">(선택 · 제목과 주소를 넣으면 공지에 버튼으로 떠요)</span></label>
+        <div class="linkrow">
+          <input class="linkTitle" type="text" placeholder="버튼 이름 (예: 신청서)" />
+          <input class="linkUrl" type="url" placeholder="https://..." />
+        </div>
+        <div class="linkrow">
+          <input class="linkTitle" type="text" placeholder="버튼 이름 (예: 프로필)" />
+          <input class="linkUrl" type="url" placeholder="https://..." />
+        </div>
+        <div class="linkrow">
+          <input class="linkTitle" type="text" placeholder="버튼 이름 (선택)" />
+          <input class="linkUrl" type="url" placeholder="https://..." />
+        </div>
+
         <label>날짜</label>
         <input id="nDate" type="date" />
         <div class="row">

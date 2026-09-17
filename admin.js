@@ -101,6 +101,7 @@ async function start() {
     const body = $("nBody").value.trim();
     const date = $("nDate").value;
     const pinned = $("nPinned").checked;
+    const links = collectLinks();
 
     if (!title || !body) return showMsg($("saveMsg"), "제목과 내용을 입력하세요.", false);
 
@@ -113,12 +114,12 @@ async function start() {
 
       if (editingId) {
         await updateDoc(doc(db, "notices", editingId), {
-          title, body, imageUrl, date, pinned, updatedAt: serverTimestamp(),
+          title, body, imageUrl, links, date, pinned, updatedAt: serverTimestamp(),
         });
         showMsg($("saveMsg"), "공지를 수정했어요! ✏️", true);
       } else {
         await addDoc(collection(db, "notices"), {
-          title, body, imageUrl, date, pinned, createdAt: serverTimestamp(),
+          title, body, imageUrl, links, date, pinned, createdAt: serverTimestamp(),
         });
         showMsg($("saveMsg"), "공지를 올렸어요! 🎉", true);
       }
@@ -130,6 +131,33 @@ async function start() {
       $("saveBtn").disabled = false;
     }
   });
+
+  // 링크 입력칸에서 제목+주소가 둘 다 있는 것만 모으기
+  function collectLinks() {
+    const titles = document.querySelectorAll(".linkTitle");
+    const urls = document.querySelectorAll(".linkUrl");
+    const links = [];
+    for (let i = 0; i < titles.length; i++) {
+      const t = titles[i].value.trim();
+      let u = urls[i].value.trim();
+      if (t && u) {
+        if (!/^https?:\/\//i.test(u)) u = "https://" + u;  // http 빠뜨려도 보정
+        links.push({ title: t, url: u });
+      }
+    }
+    return links;
+  }
+  // 링크 입력칸 채우기 / 비우기
+  function fillLinks(links) {
+    const titles = document.querySelectorAll(".linkTitle");
+    const urls = document.querySelectorAll(".linkUrl");
+    titles.forEach((el) => (el.value = ""));
+    urls.forEach((el) => (el.value = ""));
+    (links || []).forEach((lk, i) => {
+      if (titles[i]) titles[i].value = lk.title || "";
+      if (urls[i]) urls[i].value = lk.url || "";
+    });
+  }
 
   $("cancelEditBtn").addEventListener("click", resetForm);
 
@@ -143,6 +171,7 @@ async function start() {
     $("nPinned").checked = false;
     $("nDate").value = new Date().toISOString().slice(0, 10);
     $("imgPreview").innerHTML = "";
+    fillLinks([]);
     $("formTitle").textContent = "새 공지 쓰기 ✍️";
     $("saveBtn").textContent = "공지 올리기";
     $("cancelEditBtn").style.display = "none";
@@ -158,6 +187,7 @@ async function start() {
     $("nPinned").checked = !!d.pinned;
     $("nImageFile").value = "";
     $("imgPreview").innerHTML = editingImageUrl ? previewImg(editingImageUrl) : "";
+    fillLinks(d.links || []);
     $("formTitle").textContent = "공지 수정 ✏️";
     $("saveBtn").textContent = "수정 완료";
     $("cancelEditBtn").style.display = "block";
