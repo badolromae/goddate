@@ -46,9 +46,52 @@ const modalClose = document.getElementById("modalClose");
 const modalDate = document.getElementById("modalDate");
 const modalTitle = document.getElementById("modalTitle");
 const modalBody = document.getElementById("modalBody");
+const newbar = document.getElementById("newbar");
+const newbarText = document.getElementById("newbarText");
 
 cafeBtn.href = CAFE_URL;
 footerText.textContent = FOOTER_TEXT;
+
+// ---------- 읽음 관리 (localStorage) ----------
+// 유저가 이미 열어본 공지의 id를 기기에 저장해 둡니다.
+// 저장된 목록에 없는 공지 = 아직 안 본 '새 공지'.
+const SEEN_KEY = "seenNoticeIds";
+
+function getSeenIds() {
+  try {
+    return JSON.parse(localStorage.getItem(SEEN_KEY) || "[]");
+  } catch { return []; }
+}
+function isSeen(id) {
+  return getSeenIds().includes(id);
+}
+function markSeen(id) {
+  try {
+    const seen = getSeenIds();
+    if (!seen.includes(id)) {
+      seen.push(id);
+      // 목록이 너무 길어지지 않게 최근 300개만 유지
+      localStorage.setItem(SEEN_KEY, JSON.stringify(seen.slice(-300)));
+    }
+  } catch {}
+}
+// 화면에 보인 공지는 모두 '봤음'으로 처리 → 배너 갱신
+function markAllSeen(notices) {
+  try {
+    const ids = notices.map((n) => n.id);
+    const merged = Array.from(new Set([...getSeenIds(), ...ids]));
+    localStorage.setItem(SEEN_KEY, JSON.stringify(merged.slice(-300)));
+  } catch {}
+}
+function updateNewBar(unseenCount) {
+  if (!newbar) return;
+  if (unseenCount > 0) {
+    newbarText.textContent = `새 공지가 ${unseenCount}개 있어요`;
+    newbar.hidden = false;
+  } else {
+    newbar.hidden = true;
+  }
+}
 
 // ---------- 날짜 포맷 ----------
 function formatDate(dateStr) {
@@ -86,20 +129,40 @@ function renderNotices(notices) {
   });
 
   board.innerHTML = "";
+  let unseenCount = 0;
   notices.forEach((n) => {
+    const unseen = !isSeen(n.id);
+    if (unseen) unseenCount++;
     const card = document.createElement("article");
-    card.className = "card" + (isNew(n.date) ? " card--new" : "");
+    card.className = "card" + (isNew(n.date) ? " card--new" : "") + (unseen ? " card--unseen" : "");
     card.innerHTML = `
       ${isNew(n.date) ? '<span class="card__ribbon">NEW</span>' : ""}
       ${n.pinned ? '<span class="card__pin">📌</span>' : ""}
+      ${unseen ? '<span class="card__dot" title="새 공지"></span>' : ""}
       <p class="card__date">${formatDate(n.date)}</p>
       <h2 class="card__title">${escapeHtml(n.title)}</h2>
+      ${n.imageUrl ? `<img class="card__thumb" src="${encodeURI(n.imageUrl)}" alt="" loading="lazy" onerror="this.style.display='none'" />` : ""}
       <p class="card__preview">${escapeHtml(stripToText(n.body))}</p>
       <span class="card__more">자세히 보기 →</span>
     `;
-    card.addEventListener("click", () => openModal(n));
+    card.addEventListener("click", () => openModal(n, card));
     board.appendChild(card);
   });
+
+  // 상단 '새 공지 N개' 배너 갱신
+  updateNewBar(unseenCount);
+
+  // 목록을 본 시점에 배너를 눌러 '모두 읽음' 할 수 있게 연결
+  if (newbar) {
+    newbar.onclick = () => {
+      markAllSeen(notices);
+      updateNewBar(0);
+      document.querySelectorAll(".card--unseen").forEach((c) => {
+        c.classList.remove("card--unseen");
+        c.querySelector(".card__dot")?.remove();
+      });
+    };
+  }
 }
 
 function stripToText(body) {
@@ -113,11 +176,35 @@ function escapeHtml(str) {
 }
 
 // ---------- 모달 ----------
-function openModal(n) {
+function openModal(n, cardEl) {
+  // 이 공지를 '읽음'으로 표시하고 화면 갱신
+  markSeen(n.id);
+  if (cardEl) {
+    cardEl.classList.remove("card--unseen");
+    cardEl.querySelector(".card__dot")?.remove();
+  }
+  // 남은 안 읽은 공지 개수로 배너 갱신
+  const remaining = document.querySelectorAll(".card--unseen").length;
+  updateNewBar(remaining);
+
   modalDate.textContent = formatDate(n.date);
   modalTitle.textContent = n.title;
-  // 본문: 줄바꿈 유지, HTML 태그는 escape (안전)
-  modalBody.textContent = n.body;
+
+  // 본문 영역 초기화 후 안전하게 구성 (사진 → 글 순서)
+  modalBody.innerHTML = "";
+  if (n.imageUrl) {
+    const img = document.createElement("img");
+    img.src = encodeURI(n.imageUrl);
+    img.alt = "";
+    img.loading = "lazy";
+    img.onerror = () => { img.style.display = "none"; };
+    modalBody.appendChild(img);
+  }
+  const textEl = document.createElement("div");
+  textEl.className = "modal__text";
+  textEl.textContent = n.body;   // 줄바꿈 유지, HTML 태그는 표시 안 됨(안전)
+  modalBody.appendChild(textEl);
+
   modal.hidden = false;
   document.body.style.overflow = "hidden";
 }
@@ -161,6 +248,7 @@ async function loadNotices() {
         id: doc.id,
         title: d.title || "(제목 없음)",
         body: d.body || "",
+        imageUrl: d.imageUrl || "",
         date: d.date || "",
         pinned: !!d.pinned,
       });

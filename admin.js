@@ -77,6 +77,7 @@ async function start() {
   $("saveBtn").addEventListener("click", async () => {
     const title = $("nTitle").value.trim();
     const body = $("nBody").value.trim();
+    const imageUrl = $("nImage").value.trim();
     const date = $("nDate").value;
     const pinned = $("nPinned").checked;
 
@@ -84,12 +85,14 @@ async function start() {
 
     try {
       await addDoc(collection(db, "notices"), {
-        title, body, date, pinned,
+        title, body, imageUrl, date, pinned,
         createdAt: serverTimestamp(),
       });
       showMsg($("saveMsg"), "공지를 올렸어요! 🎉", true);
       $("nTitle").value = "";
       $("nBody").value = "";
+      $("nImage").value = "";
+      $("imgPreview").innerHTML = "";
       $("nPinned").checked = false;
       loadList();
     } catch (e) {
@@ -113,7 +116,7 @@ async function start() {
         item.className = "notice-item";
         item.innerHTML = `
           <div>
-            <h3>${d.pinned ? "📌 " : ""}${escapeHtml(d.title)}</h3>
+            <h3>${d.pinned ? "📌 " : ""}${d.imageUrl ? "🖼️ " : ""}${escapeHtml(d.title)}</h3>
             <p class="meta">${escapeHtml(d.date || "")}</p>
           </div>
           <button class="btn-danger">삭제</button>
@@ -136,5 +139,28 @@ function escapeHtml(str) {
   div.textContent = str || "";
   return div.innerHTML;
 }
+
+// ---------- 사진 주소 미리보기 ----------
+// 관리자가 이미지 주소를 붙여넣으면 바로 미리 보여줍니다.
+(function imagePreview() {
+  const input = $("nImage");
+  const box = $("imgPreview");
+  if (!input || !box) return;
+
+  function update() {
+    const url = input.value.trim();
+    if (!url) { box.innerHTML = ""; return; }
+    box.innerHTML = `
+      <img src="${encodeURI(url)}" alt="미리보기"
+        style="max-width:100%;border-radius:14px;border:2px solid #e5ddcb;"
+        onload="this.nextElementSibling.style.display='none'"
+        onerror="this.style.display='none';this.nextElementSibling.style.display='block'" />
+      <p style="display:none;font-size:14px;color:#b93b3b;margin-top:6px;">
+        ⚠️ 이 주소로는 사진이 안 보여요. 이미지 링크가 맞는지 확인해주세요.
+      </p>`;
+  }
+  input.addEventListener("input", update);
+  input.addEventListener("blur", update);
+})();
 
 start();
