@@ -326,6 +326,11 @@ body {
 }
 .modal__body img { max-width: 100%; border-radius: var(--radius-sm); margin: 0 0 16px; display: block; }
 .modal__text { white-space: pre-wrap; word-break: break-word; }
+.body-link {
+  color: var(--felt-blue); font-weight: 700;
+  text-decoration: underline; word-break: break-all;
+}
+.body-link:active { opacity: 0.6; }
 
 /* ---------- 설치 힌트 ---------- */
 .install-hint {

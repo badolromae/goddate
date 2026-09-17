@@ -42,6 +42,7 @@
     button:active { transform:scale(0.96); }
     .btn-main { background:var(--peach); box-shadow:inset 0 -3px 0 rgba(180,90,30,0.35); width:100%; margin-top:18px; }
     .btn-danger { background:#d05a5a; font-size:15px; padding:8px 16px; }
+    .btn-edit { background:var(--peach); font-size:15px; padding:8px 16px; }
     .btn-ghost { background:var(--deep); font-size:15px; padding:8px 16px; }
     .login-box { max-width:380px; margin:60px auto; }
     .hidden { display:none !important; }
@@ -87,15 +88,15 @@
       <button class="btn-ghost logout" id="logoutBtn">로그아웃</button>
 
       <div class="panel">
-        <h2 style="font-family:'Jua';font-size:21px;margin-bottom:4px;">새 공지 쓰기 ✍️</h2>
+        <h2 id="formTitle" style="font-family:'Jua';font-size:21px;margin-bottom:4px;">새 공지 쓰기 ✍️</h2>
         <label>제목</label>
         <input id="nTitle" type="text" placeholder="공지 제목을 입력하세요" />
         <label>내용</label>
-        <textarea id="nBody" placeholder="공지 내용을 입력하세요.&#10;줄바꿈도 그대로 보여져요."></textarea>
-        <label>사진 주소 <span style="font-weight:400;font-size:15px;color:#8a8272;">(선택 · 없으면 비워두세요)</span></label>
-        <input id="nImage" type="url" placeholder="https://... (이미지 링크를 붙여넣으세요)" />
+        <textarea id="nBody" placeholder="공지 내용을 입력하세요.&#10;줄바꿈도 그대로 보여져요.&#10;주소(https://...)를 적으면 링크로 눌러서 이동할 수 있어요."></textarea>
+        <label>사진 <span style="font-weight:400;font-size:15px;color:#8a8272;">(선택 · 없으면 비워두세요)</span></label>
+        <input id="nImageFile" type="file" accept="image/*" />
         <p style="font-size:14px;color:#8a8272;margin-top:6px;line-height:1.5;">
-          💡 사진을 imgur 같은 무료 사이트에 올린 뒤, 이미지 주소를 여기에 붙여넣으면 공지에 사진이 함께 나와요.
+          💡 휴대폰이나 컴퓨터에서 사진 파일을 고르면 공지에 함께 올라가요.
         </p>
         <div id="imgPreview" style="margin-top:10px;"></div>
         <label>날짜</label>
@@ -105,6 +106,7 @@
           <label for="nPinned">📌 맨 위에 고정하기</label>
         </div>
         <button class="btn-main" id="saveBtn">공지 올리기</button>
+        <button class="btn-ghost" id="cancelEditBtn" style="width:100%;margin-top:8px;display:none;">수정 취소</button>
         <div id="saveMsg"></div>
       </div>
 

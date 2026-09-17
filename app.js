@@ -175,6 +175,41 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+// 본문 안의 주소(http/https, www)를 눌러지는 링크로 만들어 담습니다.
+// innerHTML을 쓰지 않고 노드로 직접 구성해 안전합니다.
+function linkify(text, container) {
+  const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+)/g;
+  let lastIndex = 0;
+  let match;
+  const src = text || "";
+  while ((match = urlRegex.exec(src)) !== null) {
+    // 링크 앞의 일반 글자
+    if (match.index > lastIndex) {
+      container.appendChild(document.createTextNode(src.slice(lastIndex, match.index)));
+    }
+    let url = match[0];
+    // 주소 끝에 붙은 문장부호는 링크에서 제외
+    let trailing = "";
+    const m2 = url.match(/[),.!?]+$/);
+    if (m2) { trailing = m2[0]; url = url.slice(0, -trailing.length); }
+
+    const a = document.createElement("a");
+    a.href = url.startsWith("www.") ? "https://" + url : url;
+    a.textContent = url;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.className = "body-link";
+    container.appendChild(a);
+
+    if (trailing) container.appendChild(document.createTextNode(trailing));
+    lastIndex = match.index + match[0].length;
+  }
+  // 마지막 남은 글자
+  if (lastIndex < src.length) {
+    container.appendChild(document.createTextNode(src.slice(lastIndex)));
+  }
+}
+
 // ---------- 모달 ----------
 function openModal(n, cardEl) {
   // 이 공지를 '읽음'으로 표시하고 화면 갱신
@@ -202,7 +237,7 @@ function openModal(n, cardEl) {
   }
   const textEl = document.createElement("div");
   textEl.className = "modal__text";
-  textEl.textContent = n.body;   // 줄바꿈 유지, HTML 태그는 표시 안 됨(안전)
+  linkify(n.body, textEl);   // 줄바꿈 유지 + 주소는 눌러지는 링크로
   modalBody.appendChild(textEl);
 
   modal.hidden = false;

@@ -1,7 +1,8 @@
 // ============================================
 //  관리자 페이지 로직
 //  - Firebase 로그인(관리자만)
-//  - 공지 작성 / 삭제
+//  - 공지 작성 / 수정 / 삭제
+//  - 사진 파일 업로드 (Firebase Storage)
 // ============================================
 
 const CONFIG = window.APP_CONFIG || {};
@@ -12,12 +13,10 @@ const hasFirebase =
 
 const $ = (id) => document.getElementById(id);
 
-// 데모(미연결) 상태 안내
 if (!hasFirebase) {
   $("demoWarn").classList.remove("hidden");
 }
 
-// 오늘 날짜 기본값
 $("nDate").value = new Date().toISOString().slice(0, 10);
 
 function showMsg(el, text, ok) {
@@ -25,9 +24,13 @@ function showMsg(el, text, ok) {
   el.textContent = text;
 }
 
+// 지금 수정 중인 공지 정보 (없으면 새 글 작성)
+let editingId = null;
+let editingImageUrl = "";
+let pickedFile = null;
+
 async function start() {
   if (!hasFirebase) {
-    // 데모 모드: 버튼 눌러도 안내만
     $("loginBtn").addEventListener("click", () =>
       showMsg($("loginMsg"), "Firebase 연결 후 사용할 수 있어요.", false)
     );
@@ -38,15 +41,17 @@ async function start() {
   const { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } =
     await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js");
   const {
-    getFirestore, collection, addDoc, deleteDoc, doc,
+    getFirestore, collection, addDoc, updateDoc, deleteDoc, doc,
     getDocs, query, orderBy, serverTimestamp,
   } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+  const { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } =
+    await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js");
 
   const app = initializeApp(CONFIG.firebase);
   const auth = getAuth(app);
   const db = getFirestore(app);
+  const storage = getStorage(app);
 
-  // 로그인 상태 감지
   onAuthStateChanged(auth, (user) => {
     if (user) {
       $("loginPanel").classList.add("hidden");
@@ -58,7 +63,6 @@ async function start() {
     }
   });
 
-  // 로그인
   $("loginBtn").addEventListener("click", async () => {
     const email = $("email").value.trim();
     const pw = $("password").value;
@@ -70,37 +74,96 @@ async function start() {
     }
   });
 
-  // 로그아웃
   $("logoutBtn").addEventListener("click", () => signOut(auth));
 
-  // 공지 저장
+  // 사진 파일 고르면 미리보기
+  $("nImageFile").addEventListener("change", (e) => {
+    const file = e.target.files && e.target.files[0];
+    pickedFile = file || null;
+    const box = $("imgPreview");
+    if (!file) { box.innerHTML = editingImageUrl ? previewImg(editingImageUrl) : ""; return; }
+    box.innerHTML = previewImg(URL.createObjectURL(file));
+  });
+
+  function previewImg(src) {
+    return `<img src="${src}" alt="미리보기" style="max-width:100%;border-radius:14px;border:2px solid #e5ddcb;" />`;
+  }
+
+  async function uploadImage(file) {
+    const safeName = Date.now() + "_" + file.name.replace(/[^a-zA-Z0-9._-]/g, "");
+    const storageRef = ref(storage, "notices/" + safeName);
+    await uploadBytes(storageRef, file);
+    return await getDownloadURL(storageRef);
+  }
+
   $("saveBtn").addEventListener("click", async () => {
     const title = $("nTitle").value.trim();
     const body = $("nBody").value.trim();
-    const imageUrl = $("nImage").value.trim();
     const date = $("nDate").value;
     const pinned = $("nPinned").checked;
 
     if (!title || !body) return showMsg($("saveMsg"), "제목과 내용을 입력하세요.", false);
 
+    $("saveBtn").disabled = true;
+    showMsg($("saveMsg"), pickedFile ? "사진을 올리는 중이에요…" : "저장하는 중이에요…", true);
+
     try {
-      await addDoc(collection(db, "notices"), {
-        title, body, imageUrl, date, pinned,
-        createdAt: serverTimestamp(),
-      });
-      showMsg($("saveMsg"), "공지를 올렸어요! 🎉", true);
-      $("nTitle").value = "";
-      $("nBody").value = "";
-      $("nImage").value = "";
-      $("imgPreview").innerHTML = "";
-      $("nPinned").checked = false;
+      let imageUrl = editingImageUrl;
+      if (pickedFile) imageUrl = await uploadImage(pickedFile);
+
+      if (editingId) {
+        await updateDoc(doc(db, "notices", editingId), {
+          title, body, imageUrl, date, pinned, updatedAt: serverTimestamp(),
+        });
+        showMsg($("saveMsg"), "공지를 수정했어요! ✏️", true);
+      } else {
+        await addDoc(collection(db, "notices"), {
+          title, body, imageUrl, date, pinned, createdAt: serverTimestamp(),
+        });
+        showMsg($("saveMsg"), "공지를 올렸어요! 🎉", true);
+      }
+      resetForm();
       loadList();
     } catch (e) {
       showMsg($("saveMsg"), "저장에 실패했어요: " + e.message, false);
+    } finally {
+      $("saveBtn").disabled = false;
     }
   });
 
-  // 목록 로드
+  $("cancelEditBtn").addEventListener("click", resetForm);
+
+  function resetForm() {
+    editingId = null;
+    editingImageUrl = "";
+    pickedFile = null;
+    $("nTitle").value = "";
+    $("nBody").value = "";
+    $("nImageFile").value = "";
+    $("nPinned").checked = false;
+    $("nDate").value = new Date().toISOString().slice(0, 10);
+    $("imgPreview").innerHTML = "";
+    $("formTitle").textContent = "새 공지 쓰기 ✍️";
+    $("saveBtn").textContent = "공지 올리기";
+    $("cancelEditBtn").style.display = "none";
+  }
+
+  function fillFormForEdit(id, d) {
+    editingId = id;
+    editingImageUrl = d.imageUrl || "";
+    pickedFile = null;
+    $("nTitle").value = d.title || "";
+    $("nBody").value = d.body || "";
+    $("nDate").value = d.date || new Date().toISOString().slice(0, 10);
+    $("nPinned").checked = !!d.pinned;
+    $("nImageFile").value = "";
+    $("imgPreview").innerHTML = editingImageUrl ? previewImg(editingImageUrl) : "";
+    $("formTitle").textContent = "공지 수정 ✏️";
+    $("saveBtn").textContent = "수정 완료";
+    $("cancelEditBtn").style.display = "block";
+    $("formTitle").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   async function loadList() {
     const listEl = $("list");
     listEl.textContent = "불러오는 중…";
@@ -115,16 +178,31 @@ async function start() {
         const item = document.createElement("div");
         item.className = "notice-item";
         item.innerHTML = `
-          <div>
+          <div style="flex:1;">
             <h3>${d.pinned ? "📌 " : ""}${d.imageUrl ? "🖼️ " : ""}${escapeHtml(d.title)}</h3>
             <p class="meta">${escapeHtml(d.date || "")}</p>
           </div>
-          <button class="btn-danger">삭제</button>
+          <div style="display:flex;gap:6px;flex-shrink:0;">
+            <button class="btn-edit">수정</button>
+            <button class="btn-danger">삭제</button>
+          </div>
         `;
-        item.querySelector("button").addEventListener("click", async () => {
+        item.querySelector(".btn-edit").addEventListener("click", () => fillFormForEdit(docSnap.id, d));
+        item.querySelector(".btn-danger").addEventListener("click", async () => {
           if (!confirm("이 공지를 삭제할까요?")) return;
-          await deleteDoc(doc(db, "notices", docSnap.id));
-          loadList();
+          try {
+            if (d.imageUrl && d.imageUrl.includes("firebasestorage")) {
+              try {
+                const path = decodeURIComponent(d.imageUrl.split("/o/")[1].split("?")[0]);
+                await deleteObject(ref(storage, path));
+              } catch (_) {}
+            }
+            await deleteDoc(doc(db, "notices", docSnap.id));
+            if (editingId === docSnap.id) resetForm();
+            loadList();
+          } catch (e) {
+            alert("삭제에 실패했어요: " + e.message);
+          }
         });
         listEl.appendChild(item);
       });
@@ -139,28 +217,5 @@ function escapeHtml(str) {
   div.textContent = str || "";
   return div.innerHTML;
 }
-
-// ---------- 사진 주소 미리보기 ----------
-// 관리자가 이미지 주소를 붙여넣으면 바로 미리 보여줍니다.
-(function imagePreview() {
-  const input = $("nImage");
-  const box = $("imgPreview");
-  if (!input || !box) return;
-
-  function update() {
-    const url = input.value.trim();
-    if (!url) { box.innerHTML = ""; return; }
-    box.innerHTML = `
-      <img src="${encodeURI(url)}" alt="미리보기"
-        style="max-width:100%;border-radius:14px;border:2px solid #e5ddcb;"
-        onload="this.nextElementSibling.style.display='none'"
-        onerror="this.style.display='none';this.nextElementSibling.style.display='block'" />
-      <p style="display:none;font-size:14px;color:#b93b3b;margin-top:6px;">
-        ⚠️ 이 주소로는 사진이 안 보여요. 이미지 링크가 맞는지 확인해주세요.
-      </p>`;
-  }
-  input.addEventListener("input", update);
-  input.addEventListener("blur", update);
-})();
 
 start();
