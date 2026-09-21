@@ -13,6 +13,8 @@ const DEMO_NOTICES = [
     body: "안녕하세요! 이곳은 따뜻한 소식을 나누는 공지 공간이에요.\n\n앞으로 이곳에서 중요한 소식과 이야기를 전해드릴게요. 궁금한 점이나 나누고 싶은 이야기가 있다면 아래 '네이버 카페' 버튼을 눌러 편하게 이야기 나눠주세요.\n\n오늘도 좋은 하루 보내세요 🌼",
     date: "2026-09-15",
     pinned: true,
+    imageUrl: "",
+    links: [],
   },
   {
     id: "demo-2",
@@ -20,6 +22,8 @@ const DEMO_NOTICES = [
     body: "이번 달 모임은 9월 28일 토요일 오후 2시에 진행됩니다.\n\n장소와 준비물은 네이버 카페 게시판에서 확인해주세요. 많은 참여 부탁드려요!",
     date: "2026-09-12",
     pinned: false,
+    imageUrl: "",
+    links: [],
   },
   {
     id: "demo-3",
@@ -27,6 +31,8 @@ const DEMO_NOTICES = [
     body: "소통은 네이버 카페에서 이루어집니다. 아래 버튼을 눌러 카페에 가입하시면 다양한 이야기를 함께 나눌 수 있어요.\n\n앱에서는 공지를, 카페에서는 대화를 — 이렇게 나눠서 편하게 이용해주세요 💙",
     date: "2026-09-08",
     pinned: false,
+    imageUrl: "",
+    links: [],
   },
 ];
 
@@ -38,39 +44,6 @@ const HAS_FIREBASE =
   CONFIG.firebase &&
   CONFIG.firebase.projectId &&
   CONFIG.firebase.projectId !== "YOUR_PROJECT_ID";
-
-// ---------- Firebase 연결 (한 번만 초기화해서 여러 곳에서 재사용) ----------
-let _db = null;
-let _fs = null;          // firestore 함수 모음
-let _initPromise = null;
-
-function ensureFirebase() {
-  if (!HAS_FIREBASE) return Promise.resolve(null);
-  if (_db) return Promise.resolve(_db);
-  if (!_initPromise) {
-    _initPromise = (async () => {
-      const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
-      const { getFirestore, collection, getDocs, query, orderBy, doc, setDoc, increment } =
-        await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
-      const app = initializeApp(CONFIG.firebase);
-      _db = getFirestore(app);
-      _fs = { collection, getDocs, query, orderBy, doc, setDoc, increment };
-      return _db;
-    })();
-  }
-  return _initPromise;
-}
-
-// ---------- 날짜 도우미 (방문·열람 기록용) ----------
-function todayStr() {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-function monthOf(dateStr) { return dateStr.slice(0, 7); }   // YYYY-MM
-function yearOf(dateStr) { return dateStr.slice(0, 4); }    // YYYY
 
 // ---------- DOM ----------
 const board = document.getElementById("board");
@@ -107,12 +80,10 @@ function markSeen(id) {
     const seen = getSeenIds();
     if (!seen.includes(id)) {
       seen.push(id);
-      // 목록이 너무 길어지지 않게 최근 300개만 유지
       localStorage.setItem(SEEN_KEY, JSON.stringify(seen.slice(-300)));
     }
   } catch {}
 }
-// 화면에 보인 공지는 모두 '봤음'으로 처리 → 배너 갱신
 function markAllSeen(notices) {
   try {
     const ids = notices.map((n) => n.id);
@@ -130,7 +101,7 @@ function updateNewBar(unseenCount) {
   }
 }
 
-// ---------- 날짜 포맷 ----------
+// ---------- 날짜 도우미 ----------
 function formatDate(dateStr) {
   try {
     const d = new Date(dateStr);
@@ -138,12 +109,15 @@ function formatDate(dateStr) {
     return `${d.getFullYear()}. ${d.getMonth() + 1}. ${d.getDate()}.`;
   } catch { return dateStr; }
 }
-
 function isNew(dateStr) {
   const d = new Date(dateStr);
   if (isNaN(d)) return false;
   const days = (Date.now() - d.getTime()) / (1000 * 60 * 60 * 24);
   return days <= 3;
+}
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 // ---------- 공지 렌더링 ----------
@@ -156,6 +130,7 @@ function renderNotices(notices) {
         <span class="empty__emoji">🌱</span>
         <p class="empty__text">아직 등록된 공지가 없어요.<br>곧 첫 소식을 전해드릴게요!</p>
       </div>`;
+    updateNewBar(0);
     return;
   }
 
@@ -186,10 +161,8 @@ function renderNotices(notices) {
     board.appendChild(card);
   });
 
-  // 상단 '새 공지 N개' 배너 갱신
   updateNewBar(unseenCount);
 
-  // 목록을 본 시점에 배너를 눌러 '모두 읽음' 할 수 있게 연결
   if (newbar) {
     newbar.onclick = () => {
       markAllSeen(notices);
@@ -213,19 +186,16 @@ function escapeHtml(str) {
 }
 
 // 본문 안의 주소(http/https, www)를 눌러지는 링크로 만들어 담습니다.
-// innerHTML을 쓰지 않고 노드로 직접 구성해 안전합니다.
 function linkify(text, container) {
   const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+)/g;
   let lastIndex = 0;
   let match;
   const src = text || "";
   while ((match = urlRegex.exec(src)) !== null) {
-    // 링크 앞의 일반 글자
     if (match.index > lastIndex) {
       container.appendChild(document.createTextNode(src.slice(lastIndex, match.index)));
     }
     let url = match[0];
-    // 주소 끝에 붙은 문장부호는 링크에서 제외
     let trailing = "";
     const m2 = url.match(/[),.!?]+$/);
     if (m2) { trailing = m2[0]; url = url.slice(0, -trailing.length); }
@@ -241,7 +211,6 @@ function linkify(text, container) {
     if (trailing) container.appendChild(document.createTextNode(trailing));
     lastIndex = match.index + match[0].length;
   }
-  // 마지막 남은 글자
   if (lastIndex < src.length) {
     container.appendChild(document.createTextNode(src.slice(lastIndex)));
   }
@@ -249,26 +218,23 @@ function linkify(text, container) {
 
 // ---------- 모달 ----------
 function openModal(n, cardEl) {
-  // 이 공지를 '읽음'으로 표시하고 화면 갱신
   markSeen(n.id);
   trackRead(n.id);   // 관리자 통계용 '읽은 횟수' +1
   if (cardEl) {
     cardEl.classList.remove("card--unseen");
     cardEl.querySelector(".card__dot")?.remove();
   }
-  // 남은 안 읽은 공지 개수로 배너 갱신
   const remaining = document.querySelectorAll(".card--unseen").length;
   updateNewBar(remaining);
 
   modalDate.textContent = formatDate(n.date);
   modalTitle.textContent = n.title;
 
-  // 본문 영역 초기화 후 안전하게 구성 (사진 → 글 → 링크 버튼)
   modalBody.innerHTML = "";
 
   if (n.imageUrl) {
     const img = document.createElement("img");
-    img.src = n.imageUrl;              // Firebase 다운로드 주소를 그대로 사용
+    img.src = n.imageUrl;
     img.alt = "";
     img.loading = "lazy";
     img.onerror = () => { img.style.display = "none"; };
@@ -277,10 +243,9 @@ function openModal(n, cardEl) {
 
   const textEl = document.createElement("div");
   textEl.className = "modal__text";
-  linkify(n.body, textEl);   // 줄바꿈 유지 + 본문 속 주소도 링크로
+  linkify(n.body, textEl);
   modalBody.appendChild(textEl);
 
-  // 링크 버튼들 (관리자가 넣은 제목+주소)
   if (Array.isArray(n.links) && n.links.length > 0) {
     const box = document.createElement("div");
     box.className = "modal__links";
@@ -312,13 +277,7 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal
 
 // ---------- 데이터 로드 ----------
 async function loadNotices() {
-  const hasFirebase =
-    CONFIG.firebase &&
-    CONFIG.firebase.projectId &&
-    CONFIG.firebase.projectId !== "YOUR_PROJECT_ID";
-
-  if (!hasFirebase) {
-    // 데모 모드
+  if (!HAS_FIREBASE) {
     console.info("[공지앱] Firebase 미설정 → 데모 데이터로 실행 중입니다. config.js 를 채우면 클라우드와 연결됩니다.");
     setTimeout(() => renderNotices(DEMO_NOTICES), 500);
     return;
@@ -327,7 +286,7 @@ async function loadNotices() {
   try {
     const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
     const { getFirestore, collection, getDocs, query, orderBy, doc,
-             runTransaction, increment, serverTimestamp, getDoc } =
+             runTransaction, increment, serverTimestamp } =
       await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
 
     const fbApp = initializeApp(CONFIG.firebase);
@@ -337,11 +296,11 @@ async function loadNotices() {
     const snap = await getDocs(q);
 
     const notices = [];
-    snap.forEach((doc) => {
-      const d = doc.data();
+    snap.forEach((docSnap) => {
+      const d = docSnap.data();
       if (d.completed) return;   // 완료 처리된 공지는 유저 화면에서 숨김
       notices.push({
-        id: doc.id,
+        id: docSnap.id,
         title: d.title || "(제목 없음)",
         body: d.body || "",
         imageUrl: d.imageUrl || "",
@@ -352,7 +311,7 @@ async function loadNotices() {
     });
 
     renderNotices(notices);
-    trackVisitAndReads(db, { doc, runTransaction, increment, serverTimestamp, getDoc });
+    trackVisit(db, { doc, runTransaction, increment, serverTimestamp });
   } catch (err) {
     console.error("[공지앱] 공지를 불러오지 못했어요:", err);
     skeleton?.remove();
@@ -367,10 +326,6 @@ async function loadNotices() {
 // ---------- 방문자 / 읽은 횟수 기록 ----------
 // 같은 기기가 하루에 여러 번 열어도 '방문자'는 하루 1회만 셉니다.
 // 공지를 열어보는 행동('읽은 횟수')은 열 때마다 셉니다.
-function todayStr() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 function getVisitorId() {
   let id = localStorage.getItem("visitorId");
   if (!id) {
@@ -380,20 +335,20 @@ function getVisitorId() {
   return id;
 }
 
-async function trackVisitAndReads(db, fx) {
+async function trackVisit(db, fx) {
   const { doc, runTransaction, increment, serverTimestamp } = fx;
   const today = todayStr();
   const visitorId = getVisitorId();
   const lastVisit = localStorage.getItem("lastVisitDate");
 
-  if (lastVisit === today) return;  // 오늘은 이미 기록했음 (기기 저장값으로 판단, 추가 비용 없음)
+  if (lastVisit === today) return;  // 오늘은 이미 기록했음 (추가 비용 없음)
 
   try {
     const logRef = doc(db, "visit_log", `${today}_${visitorId}`);
     const statsRef = doc(db, "stats_daily", today);
     await runTransaction(db, async (tx) => {
       const logSnap = await tx.get(logRef);
-      if (logSnap.exists()) return;  // 이미 오늘 방문 기록됨 (다른 경로로) → 중복 방지
+      if (logSnap.exists()) return;
       tx.set(logRef, { ts: serverTimestamp() });
       tx.set(statsRef, { visitors: increment(1), date: today }, { merge: true });
     });
@@ -403,11 +358,9 @@ async function trackVisitAndReads(db, fx) {
   }
 }
 
-// 공지를 열 때 '읽은 횟수' +1 (한 번 열 때마다 카운트)
+// 공지를 열 때 '읽은 횟수' +1
 async function trackRead(noticeId) {
-  const hasFirebase =
-    CONFIG.firebase && CONFIG.firebase.projectId && CONFIG.firebase.projectId !== "YOUR_PROJECT_ID";
-  if (!hasFirebase) return;
+  if (!HAS_FIREBASE) return;
   try {
     const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
     const { getFirestore, doc, setDoc, increment } =
@@ -451,7 +404,6 @@ if ("serviceWorker" in navigator) {
     localStorage.setItem("installHintDismissed", "1");
   });
 
-  // 안드로이드/크롬 설치 프롬프트
   let deferredPrompt;
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
