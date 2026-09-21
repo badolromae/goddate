@@ -34,6 +34,43 @@ const DEMO_NOTICES = [
 const CONFIG = window.APP_CONFIG || {};
 const CAFE_URL = CONFIG.cafeUrl || "https://cafe.naver.com";
 const FOOTER_TEXT = CONFIG.footerText || "사랑을 담아 전합니다";
+const HAS_FIREBASE =
+  CONFIG.firebase &&
+  CONFIG.firebase.projectId &&
+  CONFIG.firebase.projectId !== "YOUR_PROJECT_ID";
+
+// ---------- Firebase 연결 (한 번만 초기화해서 여러 곳에서 재사용) ----------
+let _db = null;
+let _fs = null;          // firestore 함수 모음
+let _initPromise = null;
+
+function ensureFirebase() {
+  if (!HAS_FIREBASE) return Promise.resolve(null);
+  if (_db) return Promise.resolve(_db);
+  if (!_initPromise) {
+    _initPromise = (async () => {
+      const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
+      const { getFirestore, collection, getDocs, query, orderBy, doc, setDoc, increment } =
+        await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+      const app = initializeApp(CONFIG.firebase);
+      _db = getFirestore(app);
+      _fs = { collection, getDocs, query, orderBy, doc, setDoc, increment };
+      return _db;
+    })();
+  }
+  return _initPromise;
+}
+
+// ---------- 날짜 도우미 (방문·열람 기록용) ----------
+function todayStr() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+function monthOf(dateStr) { return dateStr.slice(0, 7); }   // YYYY-MM
+function yearOf(dateStr) { return dateStr.slice(0, 4); }    // YYYY
 
 // ---------- DOM ----------
 const board = document.getElementById("board");
@@ -214,6 +251,7 @@ function linkify(text, container) {
 function openModal(n, cardEl) {
   // 이 공지를 '읽음'으로 표시하고 화면 갱신
   markSeen(n.id);
+  trackRead(n.id);   // 관리자 통계용 '읽은 횟수' +1
   if (cardEl) {
     cardEl.classList.remove("card--unseen");
     cardEl.querySelector(".card__dot")?.remove();
@@ -288,7 +326,8 @@ async function loadNotices() {
 
   try {
     const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
-    const { getFirestore, collection, getDocs, query, orderBy } =
+    const { getFirestore, collection, getDocs, query, orderBy, doc,
+             runTransaction, increment, serverTimestamp, getDoc } =
       await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
 
     const fbApp = initializeApp(CONFIG.firebase);
@@ -300,6 +339,7 @@ async function loadNotices() {
     const notices = [];
     snap.forEach((doc) => {
       const d = doc.data();
+      if (d.completed) return;   // 완료 처리된 공지는 유저 화면에서 숨김
       notices.push({
         id: doc.id,
         title: d.title || "(제목 없음)",
@@ -312,6 +352,7 @@ async function loadNotices() {
     });
 
     renderNotices(notices);
+    trackVisitAndReads(db, { doc, runTransaction, increment, serverTimestamp, getDoc });
   } catch (err) {
     console.error("[공지앱] 공지를 불러오지 못했어요:", err);
     skeleton?.remove();
@@ -320,6 +361,63 @@ async function loadNotices() {
         <span class="empty__emoji">🌧️</span>
         <p class="empty__text">소식을 불러오지 못했어요.<br>잠시 후 다시 열어주세요.</p>
       </div>`;
+  }
+}
+
+// ---------- 방문자 / 읽은 횟수 기록 ----------
+// 같은 기기가 하루에 여러 번 열어도 '방문자'는 하루 1회만 셉니다.
+// 공지를 열어보는 행동('읽은 횟수')은 열 때마다 셉니다.
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function getVisitorId() {
+  let id = localStorage.getItem("visitorId");
+  if (!id) {
+    id = "v_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 10);
+    localStorage.setItem("visitorId", id);
+  }
+  return id;
+}
+
+async function trackVisitAndReads(db, fx) {
+  const { doc, runTransaction, increment, serverTimestamp } = fx;
+  const today = todayStr();
+  const visitorId = getVisitorId();
+  const lastVisit = localStorage.getItem("lastVisitDate");
+
+  if (lastVisit === today) return;  // 오늘은 이미 기록했음 (기기 저장값으로 판단, 추가 비용 없음)
+
+  try {
+    const logRef = doc(db, "visit_log", `${today}_${visitorId}`);
+    const statsRef = doc(db, "stats_daily", today);
+    await runTransaction(db, async (tx) => {
+      const logSnap = await tx.get(logRef);
+      if (logSnap.exists()) return;  // 이미 오늘 방문 기록됨 (다른 경로로) → 중복 방지
+      tx.set(logRef, { ts: serverTimestamp() });
+      tx.set(statsRef, { visitors: increment(1), date: today }, { merge: true });
+    });
+    localStorage.setItem("lastVisitDate", today);
+  } catch (e) {
+    console.warn("[공지앱] 방문 기록 실패(무시):", e.message);
+  }
+}
+
+// 공지를 열 때 '읽은 횟수' +1 (한 번 열 때마다 카운트)
+async function trackRead(noticeId) {
+  const hasFirebase =
+    CONFIG.firebase && CONFIG.firebase.projectId && CONFIG.firebase.projectId !== "YOUR_PROJECT_ID";
+  if (!hasFirebase) return;
+  try {
+    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
+    const { getFirestore, doc, setDoc, increment } =
+      await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+    const fbApp = initializeApp(CONFIG.firebase);
+    const db = getFirestore(fbApp);
+    const today = todayStr();
+    await setDoc(doc(db, "stats_daily", today), { reads: increment(1), date: today }, { merge: true });
+  } catch (e) {
+    console.warn("[공지앱] 읽은 횟수 기록 실패(무시):", e.message);
   }
 }
 
