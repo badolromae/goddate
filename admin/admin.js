@@ -43,7 +43,8 @@ async function start() {
     await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js");
   const {
     getFirestore, collection, addDoc, updateDoc, deleteDoc, doc,
-    getDocs, query, orderBy, serverTimestamp,
+    getDocs, query, orderBy, serverTimestamp, getDoc,
+    where, documentId,
   } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
   const { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } =
     await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js");
@@ -58,6 +59,7 @@ async function start() {
       $("loginPanel").classList.add("hidden");
       $("adminPanel").classList.remove("hidden");
       loadList();
+      loadSummaryStats();
     } else {
       $("loginPanel").classList.remove("hidden");
       $("adminPanel").classList.add("hidden");
@@ -210,18 +212,28 @@ async function start() {
       listEl.innerHTML = "";
       snap.forEach((docSnap) => {
         const d = docSnap.data();
+        const done = !!d.completed;
         const item = document.createElement("div");
-        item.className = "notice-item";
+        item.className = "notice-item" + (done ? " notice-item--done" : "");
         item.innerHTML = `
           <div style="flex:1;">
-            <h3>${d.pinned ? "📌 " : ""}${d.imageUrl ? "🖼️ " : ""}${escapeHtml(d.title)}</h3>
-            <p class="meta">${escapeHtml(d.date || "")}</p>
+            <h3>${done ? "✅ " : ""}${d.pinned ? "📌 " : ""}${d.imageUrl ? "🖼️ " : ""}${escapeHtml(d.title)}</h3>
+            <p class="meta">${escapeHtml(d.date || "")}${done ? " · 완료됨(유저 화면에서 숨김)" : ""}</p>
           </div>
-          <div style="display:flex;gap:6px;flex-shrink:0;">
+          <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;">
+            <button class="btn-done">${done ? "완료 취소" : "완료"}</button>
             <button class="btn-edit">수정</button>
             <button class="btn-danger">삭제</button>
           </div>
         `;
+        item.querySelector(".btn-done").addEventListener("click", async () => {
+          try {
+            await updateDoc(doc(db, "notices", docSnap.id), { completed: !done });
+            loadList();
+          } catch (e) {
+            alert("처리에 실패했어요: " + e.message);
+          }
+        });
         item.querySelector(".btn-edit").addEventListener("click", () => fillFormForEdit(docSnap.id, d));
         item.querySelector(".btn-danger").addEventListener("click", async () => {
           if (!confirm("이 공지를 삭제할까요?")) return;
@@ -245,6 +257,107 @@ async function start() {
       listEl.textContent = "목록을 불러오지 못했어요: " + e.message;
     }
   }
+
+  // ================= 방문 · 조회 통계 =================
+  function pad2(n) { return String(n).padStart(2, "0"); }
+  function ymd(y, m, d) { return `${y}-${pad2(m)}-${pad2(d)}`; }
+  function daysInMonth(y, m) { return new Date(y, m, 0).getDate(); }
+
+  // 오늘 요약 카드 (로그인 직후 자동 표시)
+  async function loadSummaryStats() {
+    const today = ymd(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate());
+    try {
+      const snap = await getDoc(doc(db, "stats_daily", today));
+      const v = snap.exists() ? (snap.data().visitors || 0) : 0;
+      const r = snap.exists() ? (snap.data().reads || 0) : 0;
+      $("todayVisitors").textContent = v;
+      $("todayReads").textContent = r;
+    } catch (e) {
+      $("todayVisitors").textContent = "-";
+      $("todayReads").textContent = "-";
+    }
+  }
+
+  // 특정 기간(연/월) 통계 검색
+  async function searchStats(year, month) {
+    const resultEl = $("statsResult");
+    resultEl.innerHTML = "불러오는 중…";
+    try {
+      let startId, endId, groupByMonth;
+      if (month) {
+        // 특정 달의 하루하루
+        startId = ymd(year, month, 1);
+        endId = ymd(year, month, daysInMonth(year, month));
+        groupByMonth = false;
+      } else {
+        // 한 해의 달별 합계
+        startId = ymd(year, 1, 1);
+        endId = ymd(year, 12, 31);
+        groupByMonth = true;
+      }
+
+      const q = query(
+        collection(db, "stats_daily"),
+        where(documentId(), ">=", startId),
+        where(documentId(), "<=", endId)
+      );
+      const snap = await getDocs(q);
+
+      let totalV = 0, totalR = 0;
+      const rows = {}; // key: date 또는 "YYYY-MM" → {v,r}
+      snap.forEach((d) => {
+        const data = d.data();
+        const v = data.visitors || 0, r = data.reads || 0;
+        totalV += v; totalR += r;
+        const key = groupByMonth ? d.id.slice(0, 7) : d.id;
+        if (!rows[key]) rows[key] = { v: 0, r: 0 };
+        rows[key].v += v; rows[key].r += r;
+      });
+
+      const keys = Object.keys(rows).sort();
+      let html = `
+        <div class="stats-total">
+          <b>${month ? `${year}년 ${month}월` : `${year}년`} 합계</b>
+          <span>👀 방문자 ${totalV}명 · 📖 읽은 횟수 ${totalR}회</span>
+        </div>`;
+
+      if (keys.length === 0) {
+        html += `<p class="stats-empty">해당 기간에 기록된 데이터가 없어요.</p>`;
+      } else {
+        html += `<table class="stats-table"><thead><tr>
+          <th>${groupByMonth ? "월" : "날짜"}</th><th>방문자</th><th>읽은 횟수</th>
+        </tr></thead><tbody>`;
+        keys.forEach((k) => {
+          const label = groupByMonth ? k.slice(5, 7) + "월" : k;
+          html += `<tr><td>${label}</td><td>${rows[k].v}</td><td>${rows[k].r}</td></tr>`;
+        });
+        html += `</tbody></table>`;
+      }
+      resultEl.innerHTML = html;
+    } catch (e) {
+      resultEl.innerHTML = `<p class="stats-empty">불러오지 못했어요: ${e.message}</p>`;
+    }
+  }
+
+  // 통계 패널 열기/닫기 + 검색 버튼 연결
+  $("statsToggle")?.addEventListener("click", () => {
+    const panel = $("statsPanel");
+    panel.classList.toggle("hidden");
+    if (!panel.classList.contains("hidden") && !panel.dataset.loaded) {
+      panel.dataset.loaded = "1";
+      const now = new Date();
+      $("statsYear").value = now.getFullYear();
+      $("statsMonth").value = now.getMonth() + 1;
+      searchStats(now.getFullYear(), now.getMonth() + 1);
+    }
+  });
+  $("statsSearchBtn")?.addEventListener("click", () => {
+    const year = parseInt($("statsYear").value, 10);
+    const monthVal = $("statsMonth").value;
+    const month = monthVal ? parseInt(monthVal, 10) : null;
+    if (!year) return;
+    searchStats(year, month);
+  });
 }
 
 function escapeHtml(str) {

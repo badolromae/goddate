@@ -52,10 +52,42 @@
     .btn-main { background:var(--peach); box-shadow:inset 0 -3px 0 rgba(180,90,30,0.35); width:100%; margin-top:18px; }
     .btn-danger { background:#d05a5a; font-size:15px; padding:8px 16px; }
     .btn-edit { background:var(--peach); font-size:15px; padding:8px 16px; }
+    .btn-done { background:#5a9d6b; font-size:15px; padding:8px 16px; }
+    .notice-item--done { opacity:0.62; }
     .linkrow { display:flex; gap:8px; margin-bottom:8px; }
     .linkrow .linkTitle { flex:0 0 40%; }
     .linkrow .linkUrl { flex:1; }
     .btn-ghost { background:var(--deep); font-size:15px; padding:8px 16px; }
+
+    /* 통계 카드 & 패널 */
+    .stat-cards { display:flex; gap:10px; margin-bottom:16px; }
+    .stat-card {
+      flex:1; background:#fffdf8; border:1px solid #eee3cf; border-radius:16px;
+      padding:14px 10px; text-align:center;
+    }
+    .stat-card .num { font-family:'Jua',sans-serif; font-size:26px; color:var(--coral); }
+    .stat-card .label { font-size:14px; color:#8a8272; margin-top:2px; }
+    .stats-toggle-btn {
+      width:100%; background:var(--deep); font-size:16px; padding:12px;
+      display:flex; align-items:center; justify-content:center; gap:6px;
+    }
+    .stats-panel { margin-top:14px; }
+    .stats-search-row { display:flex; gap:8px; align-items:center; margin:12px 0; flex-wrap:wrap; }
+    .stats-search-row select, .stats-search-row input {
+      font-family:'Gaegu',sans-serif; font-size:16px; padding:9px 10px;
+      border:2px solid #e5ddcb; border-radius:10px; background:#fffdf8; color:var(--ink);
+    }
+    .stats-search-row button { font-size:15px; padding:9px 18px; background:var(--peach); }
+    .stats-total {
+      display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;
+      background:#fff3e6; border-radius:12px; padding:10px 14px; margin-bottom:10px; font-size:16px;
+    }
+    .stats-table { width:100%; border-collapse:collapse; font-size:15px; }
+    .stats-table th, .stats-table td {
+      padding:8px 6px; text-align:center; border-bottom:1px solid #eee3cf;
+    }
+    .stats-table th { color:#8a8272; font-weight:700; }
+    .stats-empty { color:#8a8272; font-size:15px; text-align:center; padding:12px; }
     .login-box { max-width:380px; margin:60px auto; }
     .hidden { display:none !important; }
     .notice-item {
@@ -106,6 +138,35 @@
     <!-- 공지 작성 -->
     <div id="adminPanel" class="hidden">
       <button class="btn-ghost logout" id="logoutBtn">로그아웃</button>
+
+      <div class="panel">
+        <div class="stat-cards">
+          <div class="stat-card">
+            <div class="num" id="todayVisitors">-</div>
+            <div class="label">오늘 방문자</div>
+          </div>
+          <div class="stat-card">
+            <div class="num" id="todayReads">-</div>
+            <div class="label">오늘 읽은 횟수</div>
+          </div>
+        </div>
+        <button class="stats-toggle-btn" id="statsToggle">📊 방문 · 조회 기록 자세히 보기</button>
+
+        <div id="statsPanel" class="stats-panel hidden">
+          <div class="stats-search-row">
+            <select id="statsYear"></select>
+            <select id="statsMonth">
+              <option value="">전체(월별 합계)</option>
+              <option value="1">1월</option><option value="2">2월</option><option value="3">3월</option>
+              <option value="4">4월</option><option value="5">5월</option><option value="6">6월</option>
+              <option value="7">7월</option><option value="8">8월</option><option value="9">9월</option>
+              <option value="10">10월</option><option value="11">11월</option><option value="12">12월</option>
+            </select>
+            <button id="statsSearchBtn">검색</button>
+          </div>
+          <div id="statsResult"></div>
+        </div>
+      </div>
 
       <div class="panel">
         <h2 id="formTitle" style="font-family:'Jua';font-size:21px;margin-bottom:4px;">새 공지 쓰기 ✍️</h2>
@@ -159,6 +220,18 @@
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
     }
+
+    // 통계 검색용 연도 드롭다운 채우기 (올해 기준 앞뒤 몇 년)
+    (function fillYearSelect() {
+      const sel = document.getElementById("statsYear");
+      if (!sel) return;
+      const nowY = new Date().getFullYear();
+      for (let y = nowY; y >= nowY - 4; y--) {
+        const opt = document.createElement("option");
+        opt.value = y; opt.textContent = y + "년";
+        sel.appendChild(opt);
+      }
+    })();
 
     // ===== 앱 설치 버튼 =====
     (function () {
