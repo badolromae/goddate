@@ -4,7 +4,7 @@
 //  (공지 데이터는 항상 최신을 불러옵니다)
 // ============================================
 
-const CACHE_NAME = "notice-app-v4";
+const CACHE_NAME = "notice-app-v6";
 const ASSETS = [
   "./",
   "./index.html",
@@ -14,11 +14,6 @@ const ASSETS = [
   "./manifest.json",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
-  "./admin.html",
-  "./admin.js",
-  "./admin-manifest.json",
-  "./icons/admin-192.png",
-  "./icons/admin-512.png",
 ];
 
 self.addEventListener("install", (e) => {
@@ -40,13 +35,24 @@ self.addEventListener("activate", (e) => {
 self.addEventListener("fetch", (e) => {
   const url = e.request.url;
 
+  // 관리자 앱(/admin/)은 자기 서비스워커가 따로 담당하므로 손대지 않음
+  if (url.includes("/admin/")) return;
+
   // Firebase/구글 요청은 항상 네트워크 (최신 공지)
   if (url.includes("firestore") || url.includes("googleapis") || url.includes("gstatic")) {
     return;
   }
 
   // 앱 껍데기는 캐시 우선
+  // 새 파일 먼저(업데이트 즉시 반영), 인터넷이 안 될 때만 저장본 사용
+  if (e.request.method !== "GET") return;
   e.respondWith(
-    caches.match(e.request).then((cached) => cached || fetch(e.request))
+    fetch(e.request)
+      .then((res) => {
+        const copy = res.clone();
+        caches.open(CACHE_NAME).then((c) => c.put(e.request, copy)).catch(() => {});
+        return res;
+      })
+      .catch(() => caches.match(e.request))
   );
 });

@@ -264,37 +264,47 @@ function openModal(n, cardEl) {
     modalBody.appendChild(box);
   }
 
+  // 댓글 영역
+  openNoticeId = n.id;
+  $id("commentInput").value = "";
+  refreshMemberUI();
+  loadComments(n.id);
+
   modal.hidden = false;
   document.body.style.overflow = "hidden";
 }
 function closeModal() {
   modal.hidden = true;
+  openNoticeId = null;
   document.body.style.overflow = "";
 }
 modalClose.addEventListener("click", closeModal);
 modalBackdrop.addEventListener("click", closeModal);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
 
+// ---------- Firebase (한 번만 켜서 모든 기능이 같이 씀) ----------
+const FB_VER = "10.12.2";
+let FB = null;   // { db, auth, fs:{...}, au:{...} }
+async function fb() {
+  if (FB) return FB;
+  const { initializeApp } = await import(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-app.js`);
+  const fs = await import(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-firestore.js`);
+  const au = await import(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-auth.js`);
+  const app = initializeApp(CONFIG.firebase);
+  FB = { db: fs.getFirestore(app), auth: au.getAuth(app), fs, au };
+  return FB;
+}
+
 // ---------- 데이터 로드 ----------
 async function loadNotices() {
   if (!HAS_FIREBASE) {
-    console.info("[공지앱] Firebase 미설정 → 데모 데이터로 실행 중입니다. config.js 를 채우면 클라우드와 연결됩니다.");
+    console.info("[공지앱] Firebase 미설정 → 데모 데이터로 실행 중입니다.");
     setTimeout(() => renderNotices(DEMO_NOTICES), 500);
     return;
   }
-
   try {
-    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
-    const { getFirestore, collection, getDocs, query, orderBy, doc,
-             runTransaction, increment, serverTimestamp } =
-      await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
-
-    const fbApp = initializeApp(CONFIG.firebase);
-    const db = getFirestore(fbApp);
-
-    const q = query(collection(db, "notices"), orderBy("date", "desc"));
-    const snap = await getDocs(q);
-
+    const { db, fs } = await fb();
+    const snap = await fs.getDocs(fs.query(fs.collection(db, "notices"), fs.orderBy("date", "desc")));
     const notices = [];
     snap.forEach((docSnap) => {
       const d = docSnap.data();
@@ -309,9 +319,8 @@ async function loadNotices() {
         pinned: !!d.pinned,
       });
     });
-
     renderNotices(notices);
-    trackVisit(db, { doc, runTransaction, increment, serverTimestamp });
+    trackVisit();
   } catch (err) {
     console.error("[공지앱] 공지를 불러오지 못했어요:", err);
     skeleton?.remove();
@@ -324,8 +333,6 @@ async function loadNotices() {
 }
 
 // ---------- 방문자 / 읽은 횟수 기록 ----------
-// 같은 기기가 하루에 여러 번 열어도 '방문자'는 하루 1회만 셉니다.
-// 공지를 열어보는 행동('읽은 횟수')은 열 때마다 셉니다.
 function getVisitorId() {
   let id = localStorage.getItem("visitorId");
   if (!id) {
@@ -334,47 +341,256 @@ function getVisitorId() {
   }
   return id;
 }
-
-async function trackVisit(db, fx) {
-  const { doc, runTransaction, increment, serverTimestamp } = fx;
+async function trackVisit() {
   const today = todayStr();
-  const visitorId = getVisitorId();
-  const lastVisit = localStorage.getItem("lastVisitDate");
-
-  if (lastVisit === today) return;  // 오늘은 이미 기록했음 (추가 비용 없음)
-
+  if (localStorage.getItem("lastVisitDate") === today) return;  // 오늘은 이미 셌음
   try {
-    const logRef = doc(db, "visit_log", `${today}_${visitorId}`);
-    const statsRef = doc(db, "stats_daily", today);
-    await runTransaction(db, async (tx) => {
+    const { db, fs } = await fb();
+    const logRef = fs.doc(db, "visit_log", `${today}_${getVisitorId()}`);
+    const statsRef = fs.doc(db, "stats_daily", today);
+    await fs.runTransaction(db, async (tx) => {
       const logSnap = await tx.get(logRef);
       if (logSnap.exists()) return;
-      tx.set(logRef, { ts: serverTimestamp() });
-      tx.set(statsRef, { visitors: increment(1), date: today }, { merge: true });
+      tx.set(logRef, { ts: fs.serverTimestamp() });
+      tx.set(statsRef, { visitors: fs.increment(1), date: today }, { merge: true });
     });
     localStorage.setItem("lastVisitDate", today);
   } catch (e) {
     console.warn("[공지앱] 방문 기록 실패(무시):", e.message);
   }
 }
-
-// 공지를 열 때 '읽은 횟수' +1
-async function trackRead(noticeId) {
+async function trackRead() {
   if (!HAS_FIREBASE) return;
   try {
-    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
-    const { getFirestore, doc, setDoc, increment } =
-      await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
-    const fbApp = initializeApp(CONFIG.firebase);
-    const db = getFirestore(fbApp);
+    const { db, fs } = await fb();
     const today = todayStr();
-    await setDoc(doc(db, "stats_daily", today), { reads: increment(1), date: today }, { merge: true });
+    await fs.setDoc(fs.doc(db, "stats_daily", today), { reads: fs.increment(1), date: today }, { merge: true });
   } catch (e) {
     console.warn("[공지앱] 읽은 횟수 기록 실패(무시):", e.message);
   }
 }
 
+// ============================================
+//  회원 (로그인 · 회원가입)
+// ============================================
+let currentUser = null;
+const memberBtn = document.getElementById("memberBtn");
+const memberName = document.getElementById("memberName");
+const authModal = document.getElementById("authModal");
+const authMsg = document.getElementById("authMsg");
+const $id = (x) => document.getElementById(x);
+
+function displayNameOf(u) {
+  return (u && (u.displayName || (u.email || "").split("@")[0])) || "회원";
+}
+function refreshMemberUI() {
+  if (currentUser) {
+    memberName.textContent = displayNameOf(currentUser) + "님";
+    memberBtn.textContent = "로그아웃";
+  } else {
+    memberName.textContent = "";
+    memberBtn.textContent = "로그인 · 회원가입";
+  }
+  $id("commentWrite").hidden = !currentUser;
+  $id("commentLocked").hidden = !!currentUser;
+}
+function authSay(text, ok) {
+  authMsg.textContent = text;
+  authMsg.className = "auth__msg " + (ok ? "ok" : "err");
+}
+function openAuth(tab = "login") {
+  if (!HAS_FIREBASE) { alert("아직 준비 중이에요."); return; }
+  switchTab(tab);
+  authSay("", true);
+  authModal.hidden = false;
+  document.body.style.overflow = "hidden";
+}
+function closeAuth() {
+  authModal.hidden = true;
+  if (modal.hidden) document.body.style.overflow = "";
+}
+function switchTab(tab) {
+  document.querySelectorAll(".auth__tab").forEach((b) => b.classList.toggle("is-on", b.dataset.tab === tab));
+  $id("loginForm").hidden = tab !== "login";
+  $id("signupForm").hidden = tab !== "signup";
+  authSay("", true);
+}
+function authErrorText(code) {
+  const map = {
+    "auth/invalid-email": "이메일 형식이 올바르지 않아요.",
+    "auth/email-already-in-use": "이미 가입된 이메일이에요. 로그인해 주세요.",
+    "auth/weak-password": "비밀번호는 6자 이상이어야 해요.",
+    "auth/invalid-credential": "이메일 또는 비밀번호가 맞지 않아요.",
+    "auth/wrong-password": "이메일 또는 비밀번호가 맞지 않아요.",
+    "auth/user-not-found": "가입되지 않은 이메일이에요.",
+    "auth/too-many-requests": "시도가 너무 많아요. 잠시 후 다시 해주세요.",
+    "auth/network-request-failed": "인터넷 연결을 확인해 주세요.",
+  };
+  return map[code] || "문제가 생겼어요. 다시 시도해 주세요.";
+}
+
+document.querySelectorAll(".auth__tab").forEach((b) => b.addEventListener("click", () => switchTab(b.dataset.tab)));
+$id("authClose").addEventListener("click", closeAuth);
+$id("authBackdrop").addEventListener("click", closeAuth);
+$id("commentLoginBtn").addEventListener("click", () => openAuth("login"));
+
+memberBtn.addEventListener("click", async () => {
+  if (currentUser) {
+    if (!confirm("로그아웃할까요?")) return;
+    const { auth, au } = await fb();
+    await au.signOut(auth);
+  } else {
+    openAuth("login");
+  }
+});
+
+$id("loginSubmit").addEventListener("click", async () => {
+  const email = $id("loginEmail").value.trim();
+  const pw = $id("loginPw").value;
+  if (!email || !pw) return authSay("이메일과 비밀번호를 입력해 주세요.", false);
+  try {
+    const { auth, au } = await fb();
+    await au.signInWithEmailAndPassword(auth, email, pw);
+    authSay("로그인됐어요!", true);
+    setTimeout(closeAuth, 500);
+  } catch (e) { authSay(authErrorText(e.code), false); }
+});
+
+$id("signupSubmit").addEventListener("click", async () => {
+  const name = $id("signName").value.trim();
+  const email = $id("signEmail").value.trim();
+  const pw = $id("signPw").value;
+  const pw2 = $id("signPw2").value;
+  if (!name) return authSay("이름을 입력해 주세요.", false);
+  if (!email) return authSay("이메일을 입력해 주세요.", false);
+  if (pw.length < 6) return authSay("비밀번호는 6자 이상이어야 해요.", false);
+  if (pw !== pw2) return authSay("비밀번호가 서로 달라요.", false);
+  try {
+    const { auth, au, db, fs } = await fb();
+    const cred = await au.createUserWithEmailAndPassword(auth, email, pw);
+    await au.updateProfile(cred.user, { displayName: name });
+    await fs.setDoc(fs.doc(db, "users", cred.user.uid), {
+      name, email: cred.user.email, createdAt: fs.serverTimestamp(),
+    });
+    currentUser = auth.currentUser;
+    refreshMemberUI();
+    authSay("가입을 환영해요! 🎉", true);
+    setTimeout(closeAuth, 700);
+  } catch (e) { authSay(authErrorText(e.code), false); }
+});
+
+$id("resetPwBtn").addEventListener("click", async () => {
+  const email = $id("loginEmail").value.trim();
+  if (!email) return authSay("위 칸에 가입한 이메일을 먼저 적어주세요.", false);
+  try {
+    const { auth, au } = await fb();
+    await au.sendPasswordResetEmail(auth, email);
+    authSay("비밀번호 재설정 메일을 보냈어요. 메일함을 확인해 주세요.", true);
+  } catch (e) { authSay(authErrorText(e.code), false); }
+});
+
+async function watchAuth() {
+  if (!HAS_FIREBASE) { refreshMemberUI(); return; }
+  const { auth, au } = await fb();
+  au.onAuthStateChanged(auth, (u) => {
+    currentUser = u;
+    refreshMemberUI();
+    if (!modal.hidden && openNoticeId) loadComments(openNoticeId);
+  });
+}
+
+// ============================================
+//  댓글
+// ============================================
+let openNoticeId = null;
+
+function fmtTime(ts) {
+  try {
+    const d = ts && ts.toDate ? ts.toDate() : new Date();
+    return `${d.getMonth() + 1}.${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  } catch { return ""; }
+}
+
+async function loadComments(noticeId) {
+  const list = $id("commentList");
+  const countEl = $id("commentCount");
+  if (!HAS_FIREBASE) {
+    list.innerHTML = `<p class="comments__empty">댓글은 준비 중이에요.</p>`;
+    countEl.textContent = "";
+    return;
+  }
+  list.innerHTML = `<p class="comments__empty">불러오는 중…</p>`;
+  try {
+    const { db, fs } = await fb();
+    const snap = await fs.getDocs(fs.query(
+      fs.collection(db, "notices", noticeId, "comments"),
+      fs.orderBy("createdAt", "asc"),
+      fs.limit(100)
+    ));
+    if (openNoticeId !== noticeId) return;   // 그사이 다른 공지를 열었으면 무시
+    list.innerHTML = "";
+    countEl.textContent = snap.size ? snap.size : "";
+    if (snap.empty) {
+      list.innerHTML = `<p class="comments__empty">첫 댓글을 남겨보세요 🌱</p>`;
+      return;
+    }
+    snap.forEach((c) => {
+      const d = c.data();
+      const el = document.createElement("div");
+      el.className = "comment";
+      const mine = currentUser && d.uid === currentUser.uid;
+      el.innerHTML = `
+        <div class="comment__head">
+          <span class="comment__name"></span>
+          <span><span class="comment__date">${fmtTime(d.createdAt)}</span>${mine ? '<button class="comment__del">삭제</button>' : ""}</span>
+        </div>
+        <div class="comment__text"></div>`;
+      el.querySelector(".comment__name").textContent = d.name || "회원";
+      el.querySelector(".comment__text").textContent = d.text || "";
+      if (mine) {
+        el.querySelector(".comment__del").addEventListener("click", async () => {
+          if (!confirm("내 댓글을 삭제할까요?")) return;
+          try {
+            await fs.deleteDoc(fs.doc(db, "notices", noticeId, "comments", c.id));
+            loadComments(noticeId);
+          } catch (e) { alert("삭제하지 못했어요."); }
+        });
+      }
+      list.appendChild(el);
+    });
+  } catch (e) {
+    console.warn("[공지앱] 댓글 불러오기 실패:", e.message);
+    list.innerHTML = `<p class="comments__empty">댓글을 불러오지 못했어요.</p>`;
+  }
+}
+
+$id("commentSubmit").addEventListener("click", async () => {
+  if (!currentUser) return openAuth("login");
+  const input = $id("commentInput");
+  const text = input.value.trim();
+  if (!text) return;
+  if (!openNoticeId) return;
+  const btn = $id("commentSubmit");
+  btn.disabled = true;
+  try {
+    const { db, fs } = await fb();
+    await fs.addDoc(fs.collection(db, "notices", openNoticeId, "comments"), {
+      uid: currentUser.uid,
+      name: displayNameOf(currentUser).slice(0, 30),
+      text: text.slice(0, 500),
+      createdAt: fs.serverTimestamp(),
+    });
+    input.value = "";
+    loadComments(openNoticeId);
+  } catch (e) {
+    alert("댓글을 등록하지 못했어요. 잠시 후 다시 해주세요.");
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 loadNotices();
+watchAuth();
 
 // ---------- PWA 서비스워커 ----------
 if ("serviceWorker" in navigator) {

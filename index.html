@@ -37,6 +37,11 @@
 
   <div class="app">
     <!-- 헤더 -->
+    <div class="memberbar">
+      <span id="memberName" class="memberbar__name"></span>
+      <button id="memberBtn" class="memberbar__btn">로그인 · 회원가입</button>
+    </div>
+
     <header class="header">
       <div class="header__badge">
         <span class="header__mug">☕</span>
@@ -81,6 +86,54 @@
       <p class="modal__date" id="modalDate"></p>
       <h2 class="modal__title" id="modalTitle"></h2>
       <div class="modal__body" id="modalBody"></div>
+
+      <section class="comments" id="comments">
+        <h3 class="comments__title">💬 댓글 <span id="commentCount"></span></h3>
+        <div class="comments__list" id="commentList"></div>
+        <div class="comments__write" id="commentWrite" hidden>
+          <textarea id="commentInput" maxlength="500" placeholder="따뜻한 댓글을 남겨주세요 (500자까지)"></textarea>
+          <button id="commentSubmit" class="comments__submit">댓글 등록</button>
+        </div>
+        <div class="comments__locked" id="commentLocked">
+          <p>댓글은 회원만 쓸 수 있어요</p>
+          <button id="commentLoginBtn" class="comments__submit">로그인 · 회원가입</button>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- 회원 로그인 / 가입 창 -->
+  <div class="modal" id="authModal" hidden>
+    <div class="modal__backdrop" id="authBackdrop"></div>
+    <div class="modal__sheet auth" role="dialog" aria-modal="true">
+      <button class="modal__close" id="authClose" aria-label="닫기">✕</button>
+      <div class="auth__tabs">
+        <button class="auth__tab is-on" data-tab="login">로그인</button>
+        <button class="auth__tab" data-tab="signup">회원가입</button>
+      </div>
+
+      <div class="auth__form" id="loginForm">
+        <label>이메일</label>
+        <input id="loginEmail" type="email" autocomplete="username" placeholder="you@example.com" />
+        <label>비밀번호</label>
+        <input id="loginPw" type="password" autocomplete="current-password" placeholder="비밀번호" />
+        <button class="auth__main" id="loginSubmit">로그인</button>
+        <button class="auth__link" id="resetPwBtn">비밀번호를 잊으셨나요?</button>
+      </div>
+
+      <div class="auth__form" id="signupForm" hidden>
+        <label>이름</label>
+        <input id="signName" type="text" maxlength="20" placeholder="댓글에 표시될 이름" />
+        <label>이메일</label>
+        <input id="signEmail" type="email" autocomplete="username" placeholder="you@example.com" />
+        <label>비밀번호 <small>(6자 이상)</small></label>
+        <input id="signPw" type="password" autocomplete="new-password" placeholder="비밀번호" />
+        <label>비밀번호 확인</label>
+        <input id="signPw2" type="password" autocomplete="new-password" placeholder="비밀번호 한 번 더" />
+        <button class="auth__main" id="signupSubmit">가입하기</button>
+      </div>
+
+      <p class="auth__msg" id="authMsg"></p>
     </div>
   </div>
 
