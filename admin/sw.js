@@ -1,19 +1,17 @@
 // ============================================
-//  서비스워커 — 앱 껍데기를 캐싱해서
-//  빠르게 열리고 오프라인에서도 뜨게 합니다.
-//  (공지 데이터는 항상 최신을 불러옵니다)
+//  관리자 앱 전용 서비스워커 (admin 폴더)
+//  이 폴더(/admin/)만 담당해서 독립 앱으로 동작합니다.
 // ============================================
 
-const CACHE_NAME = "notice-app-v5";
+const CACHE_NAME = "notice-admin-v2";
 const ASSETS = [
   "./",
   "./index.html",
-  "./styles.css",
-  "./app.js",
-  "./config.js",
+  "./admin.js",
   "./manifest.json",
-  "./icons/icon-192.png",
-  "./icons/icon-512.png",
+  "../config.js",
+  "../icons/admin-192.png",
+  "../icons/admin-512.png",
 ];
 
 self.addEventListener("install", (e) => {
@@ -34,17 +32,20 @@ self.addEventListener("activate", (e) => {
 
 self.addEventListener("fetch", (e) => {
   const url = e.request.url;
-
-  // 관리자 앱(/admin/)은 자기 서비스워커가 따로 담당하므로 손대지 않음
-  if (url.includes("/admin/")) return;
-
-  // Firebase/구글 요청은 항상 네트워크 (최신 공지)
-  if (url.includes("firestore") || url.includes("googleapis") || url.includes("gstatic")) {
+  // Firebase/구글 요청은 항상 네트워크 (최신 데이터)
+  if (url.includes("firestore") || url.includes("googleapis") ||
+      url.includes("gstatic") || url.includes("firebasestorage")) {
     return;
   }
-
-  // 앱 껍데기는 캐시 우선
+  // 새 파일 먼저(업데이트 즉시 반영), 인터넷이 안 될 때만 저장본 사용
+  if (e.request.method !== "GET") return;
   e.respondWith(
-    caches.match(e.request).then((cached) => cached || fetch(e.request))
+    fetch(e.request)
+      .then((res) => {
+        const copy = res.clone();
+        caches.open(CACHE_NAME).then((c) => c.put(e.request, copy)).catch(() => {});
+        return res;
+      })
+      .catch(() => caches.match(e.request))
   );
 });

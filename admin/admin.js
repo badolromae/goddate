@@ -54,8 +54,18 @@ async function start() {
   const db = getFirestore(app);
   const storage = getStorage(app);
 
-  onAuthStateChanged(auth, (user) => {
+  onAuthStateChanged(auth, async (user) => {
     if (user) {
+      // 관리자 계정인지 확인 (회원 계정은 관리자 화면 사용 불가)
+      try {
+        await getDoc(doc(db, "stats_daily", "_admin_check"));
+      } catch (e) {
+        if (e.code === "permission-denied") {
+          await signOut(auth);
+          showMsg($("loginMsg"), "관리자 계정이 아니에요. 관리자 이메일로 로그인해 주세요.", false);
+          return;
+        }
+      }
       $("loginPanel").classList.add("hidden");
       $("adminPanel").classList.remove("hidden");
       loadList();
@@ -222,6 +232,7 @@ async function start() {
           </div>
           <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;">
             <button class="btn-done">${done ? "완료 취소" : "완료"}</button>
+            <button class="btn-ghost btn-cmt">💬 댓글</button>
             <button class="btn-edit">수정</button>
             <button class="btn-danger">삭제</button>
           </div>
@@ -251,6 +262,16 @@ async function start() {
             alert("삭제에 실패했어요: " + e.message);
           }
         });
+        // 댓글 관리 영역 (버튼 누르면 펼침)
+        const cmtBox = document.createElement("div");
+        cmtBox.style.cssText = "display:none;width:100%;margin-top:10px;border-top:1px dashed #e5ddcb;padding-top:10px;";
+        item.style.flexWrap = "wrap";
+        item.appendChild(cmtBox);
+        item.querySelector(".btn-cmt").addEventListener("click", () => {
+          const open = cmtBox.style.display !== "none";
+          cmtBox.style.display = open ? "none" : "block";
+          if (!open) loadAdminComments(docSnap.id, cmtBox);
+        });
         listEl.appendChild(item);
       });
     } catch (e) {
@@ -262,6 +283,38 @@ async function start() {
   function pad2(n) { return String(n).padStart(2, "0"); }
   function ymd(y, m, d) { return `${y}-${pad2(m)}-${pad2(d)}`; }
   function daysInMonth(y, m) { return new Date(y, m, 0).getDate(); }
+
+  // 공지별 댓글 보기 · 삭제 (관리자)
+  async function loadAdminComments(noticeId, box) {
+    box.textContent = "불러오는 중…";
+    try {
+      const snap = await getDocs(query(collection(db, "notices", noticeId, "comments"), orderBy("createdAt", "asc")));
+      if (snap.empty) { box.innerHTML = '<p style="font-size:15px;color:#8a8272;">댓글이 없어요.</p>'; return; }
+      box.innerHTML = "";
+      snap.forEach((c) => {
+        const d = c.data();
+        const row = document.createElement("div");
+        row.style.cssText = "display:flex;justify-content:space-between;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px solid #f1e9d8;";
+        const txt = document.createElement("div");
+        txt.style.cssText = "flex:1;font-size:15px;line-height:1.45;word-break:break-word;";
+        const nm = document.createElement("b"); nm.textContent = (d.name || "회원") + " ";
+        const tx = document.createElement("span"); tx.textContent = d.text || "";
+        txt.appendChild(nm); txt.appendChild(tx);
+        const del = document.createElement("button");
+        del.className = "btn-danger"; del.textContent = "삭제";
+        del.style.cssText = "font-size:13px;padding:5px 12px;";
+        del.addEventListener("click", async () => {
+          if (!confirm("이 댓글을 삭제할까요?")) return;
+          try { await deleteDoc(doc(db, "notices", noticeId, "comments", c.id)); loadAdminComments(noticeId, box); }
+          catch (e) { alert("삭제에 실패했어요: " + e.message); }
+        });
+        row.appendChild(txt); row.appendChild(del);
+        box.appendChild(row);
+      });
+    } catch (e) {
+      box.textContent = "댓글을 불러오지 못했어요: " + e.message;
+    }
+  }
 
   // 오늘 요약 카드 (로그인 직후 자동 표시)
   async function loadSummaryStats() {
