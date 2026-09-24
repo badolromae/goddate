@@ -70,6 +70,7 @@ async function start() {
       $("adminPanel").classList.remove("hidden");
       loadList();
       loadSummaryStats();
+      setupMemberPanel();
     } else {
       $("loginPanel").classList.remove("hidden");
       $("adminPanel").classList.add("hidden");
@@ -284,6 +285,115 @@ async function start() {
   function ymd(y, m, d) { return `${y}-${pad2(m)}-${pad2(d)}`; }
   function daysInMonth(y, m) { return new Date(y, m, 0).getDate(); }
 
+  // ================= 회원 관리 =================
+  const memberCache = {};
+  async function getMember(uid) {
+    if (!uid) return null;
+    if (memberCache[uid] !== undefined) return memberCache[uid];
+    try {
+      const snap = await getDoc(doc(db, "users", uid));
+      memberCache[uid] = snap.exists() ? snap.data() : null;
+    } catch (e) { memberCache[uid] = null; }
+    return memberCache[uid];
+  }
+  async function setBan(uid, banned) {
+    try {
+      await updateDoc(doc(db, "users", uid), { banned, bannedAt: serverTimestamp() });
+      delete memberCache[uid];
+      alert(banned ? "차단했어요. 이제 이 회원은 댓글을 쓸 수 없어요." : "차단을 해제했어요.");
+    } catch (e) { alert("처리에 실패했어요: " + e.message); }
+  }
+  function fmtTs(ts) {
+    try {
+      const d = ts && ts.toDate ? ts.toDate() : null;
+      if (!d) return "-";
+      return `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+    } catch { return "-"; }
+  }
+
+  let memberPanelReady = false;
+  function setupMemberPanel() {
+    if (memberPanelReady) return;
+    memberPanelReady = true;
+    const panel = document.createElement("div");
+    panel.className = "panel";
+    panel.innerHTML = `
+      <button class="stats-toggle-btn" id="memberToggle">👥 회원 관리 (실명 · 차단)</button>
+      <div id="memberPanel" class="hidden" style="margin-top:14px;">
+        <p style="font-size:14px;color:#8a8272;line-height:1.5;margin-bottom:8px;">
+          🔒 회원의 실명·이메일은 이 관리자 화면에서만 보여요. 외부에 공유하지 않도록 주의해 주세요.
+        </p>
+        <div class="stats-search-row">
+          <input id="memberSearch" type="text" placeholder="활동명·실명·이메일로 검색" style="flex:1;min-width:0;" />
+          <button id="memberSearchBtn">검색</button>
+        </div>
+        <div id="memberResult"></div>
+      </div>`;
+    const firstPanel = $("adminPanel").querySelector(".panel");
+    firstPanel.after(panel);
+
+    $("memberToggle").addEventListener("click", () => {
+      const box = $("memberPanel");
+      box.classList.toggle("hidden");
+      if (!box.classList.contains("hidden")) loadMembers("");
+    });
+    $("memberSearchBtn").addEventListener("click", () => loadMembers($("memberSearch").value.trim()));
+    $("memberSearch").addEventListener("keydown", (e) => { if (e.key === "Enter") loadMembers(e.target.value.trim()); });
+  }
+
+  async function loadMembers(keyword) {
+    const box = $("memberResult");
+    box.textContent = "불러오는 중…";
+    try {
+      const snap = await getDocs(collection(db, "users"));   // 가입일 없는 회원도 빠짐없이
+      const kw = keyword.toLowerCase();
+      const rows = [];
+      snap.forEach((u) => {
+        const d = u.data();
+        memberCache[u.id] = d;
+        const hay = `${d.nickname || d.name || ""} ${d.realName || ""} ${d.email || ""}`.toLowerCase();
+        if (!kw || hay.includes(kw)) rows.push({ id: u.id, ...d });
+      });
+      rows.sort((a, b) => ((b.createdAt && b.createdAt.seconds) || 0) - ((a.createdAt && a.createdAt.seconds) || 0));
+      if (rows.length === 0) { box.innerHTML = '<p class="stats-empty">해당하는 회원이 없어요.</p>'; return; }
+      box.innerHTML = `<p style="font-size:14px;color:#8a8272;margin-bottom:6px;">총 ${rows.length}명</p>`;
+      rows.forEach((m) => {
+        const card = document.createElement("div");
+        card.className = "notice-item";
+        card.style.cssText = "flex-wrap:wrap;" + (m.banned ? "opacity:0.7;background:#fbeaea;" : "");
+        const info = document.createElement("div");
+        info.style.cssText = "flex:1;min-width:0;font-size:15px;line-height:1.6;";
+        const lines = [
+          ["활동명", m.nickname || m.name || "-"],
+          ["실명", m.realName || "미입력"],
+          ["이메일", m.email || "-"],
+          ["가입일", fmtTs(m.createdAt)],
+          ["동의일시", m.agreed ? fmtTs(m.agreedAt) + (m.agreeVersion ? ` (약관 ${m.agreeVersion})` : "") : "동의 기록 없음"],
+        ];
+        if (m.banned) lines.push(["상태", "🚫 차단됨 " + fmtTs(m.bannedAt)]);
+        lines.forEach(([k, v]) => {
+          const p = document.createElement("div");
+          const b = document.createElement("b"); b.textContent = k + ": ";
+          const span = document.createElement("span"); span.textContent = v; span.style.wordBreak = "break-all";
+          p.appendChild(b); p.appendChild(span); info.appendChild(p);
+        });
+        const btn = document.createElement("button");
+        btn.className = m.banned ? "btn-done" : "btn-danger";
+        btn.textContent = m.banned ? "차단 해제" : "차단";
+        btn.addEventListener("click", async () => {
+          const who = `'${m.nickname || m.name || "회원"}'(실명: ${m.realName || "미입력"})`;
+          if (!confirm(m.banned ? `${who} 님의 차단을 해제할까요?` : `${who} 님의 댓글 이용을 차단할까요?`)) return;
+          await setBan(m.id, !m.banned);
+          loadMembers($("memberSearch").value.trim());
+        });
+        card.appendChild(info); card.appendChild(btn);
+        box.appendChild(card);
+      });
+    } catch (e) {
+      box.textContent = "회원 목록을 불러오지 못했어요: " + e.message;
+    }
+  }
+
   // 공지별 댓글 보기 · 삭제 (관리자)
   async function loadAdminComments(noticeId, box) {
     box.textContent = "불러오는 중…";
@@ -297,9 +407,15 @@ async function start() {
         row.style.cssText = "display:flex;justify-content:space-between;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px solid #f1e9d8;";
         const txt = document.createElement("div");
         txt.style.cssText = "flex:1;font-size:15px;line-height:1.45;word-break:break-word;";
-        const nm = document.createElement("b"); nm.textContent = (d.name || "회원") + " ";
-        const tx = document.createElement("span"); tx.textContent = d.text || "";
-        txt.appendChild(nm); txt.appendChild(tx);
+        const nm = document.createElement("b"); nm.textContent = (d.name || "회원");
+        const real = document.createElement("span");
+        real.style.cssText = "font-size:13px;color:#b0662f;margin:0 4px;";
+        real.textContent = "(실명 확인 중…)";
+        const tx = document.createElement("div"); tx.textContent = d.text || "";
+        txt.appendChild(nm); txt.appendChild(real); txt.appendChild(tx);
+        getMember(d.uid).then((m) => {
+          real.textContent = m ? `(실명: ${m.realName || "미입력"}${m.banned ? " · 차단됨" : ""})` : "(회원 정보 없음)";
+        });
         const del = document.createElement("button");
         del.className = "btn-danger"; del.textContent = "삭제";
         del.style.cssText = "font-size:13px;padding:5px 12px;";
@@ -308,7 +424,21 @@ async function start() {
           try { await deleteDoc(doc(db, "notices", noticeId, "comments", c.id)); loadAdminComments(noticeId, box); }
           catch (e) { alert("삭제에 실패했어요: " + e.message); }
         });
-        row.appendChild(txt); row.appendChild(del);
+        const ban = document.createElement("button");
+        ban.className = "btn-ghost"; ban.textContent = "작성자 차단";
+        ban.style.cssText = "font-size:13px;padding:5px 12px;";
+        ban.addEventListener("click", async () => {
+          const m = await getMember(d.uid);
+          if (!m) return alert("회원 정보를 찾을 수 없어요.");
+          if (m.banned) return alert("이미 차단된 회원이에요. 회원 관리에서 해제할 수 있어요.");
+          if (!confirm(`'${m.nickname || d.name}'(실명: ${m.realName || "미입력"}) 님의 댓글 이용을 차단할까요?`)) return;
+          await setBan(d.uid, true);
+          loadAdminComments(noticeId, box);
+        });
+        const btns = document.createElement("div");
+        btns.style.cssText = "display:flex;flex-direction:column;gap:4px;flex-shrink:0;";
+        btns.appendChild(del); btns.appendChild(ban);
+        row.appendChild(txt); row.appendChild(btns);
         box.appendChild(row);
       });
     } catch (e) {

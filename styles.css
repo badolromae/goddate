@@ -444,3 +444,12 @@ body {
 .auth__msg { margin-top: 12px; text-align: center; font-size: 16px; min-height: 20px; }
 .auth__msg.ok { color: #2e7d43; }
 .auth__msg.err { color: #b93b3b; }
+
+/* ============ 가입 동의 ============ */
+.consent { margin-top: 16px; background: #fffdf8; border: 1px solid #eee3cf; border-radius: 14px; padding: 12px 14px; }
+.consent label { display: flex !important; align-items: center; gap: 8px; margin: 8px 0 4px !important; font-size: 16px; font-weight: 400 !important; cursor: pointer; }
+.consent input[type=checkbox] { width: 20px !important; height: 20px; flex-shrink: 0; accent-color: var(--felt-blue); }
+.consent__all { font-weight: 700 !important; font-size: 17px !important; padding-bottom: 8px; border-bottom: 1px dashed #e5ddcb; }
+.consent__box { font-size: 14px; line-height: 1.6; color: #6b6455; background: #f7f1e4; border-radius: 10px; padding: 8px 10px; margin: 2px 0 6px 28px; }
+.auth__notice { font-size: 16px; background: #fff3e6; border-radius: 12px; padding: 10px 12px; margin-bottom: 4px; }
+.auth__sheet-scroll { max-height: 88vh; overflow-y: auto; }

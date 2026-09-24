@@ -380,10 +380,20 @@ const authModal = document.getElementById("authModal");
 const authMsg = document.getElementById("authMsg");
 const $id = (x) => document.getElementById(x);
 
+let myProfile = null;   // 내 회원 정보 { nickname, realName, agreed, banned }
+const AGREE_VERSION = "2026-09-23";
+
+function profileComplete(p) {
+  return !!(p && p.nickname && p.realName && p.agreed);
+}
 function displayNameOf(u) {
+  if (myProfile && myProfile.nickname) return myProfile.nickname;
   return (u && (u.displayName || (u.email || "").split("@")[0])) || "회원";
 }
 function refreshMemberUI() {
+  const locked = $id("commentLocked");
+  const lockedText = locked.querySelector("p");
+  const lockedBtn = $id("commentLoginBtn");
   if (currentUser) {
     memberName.textContent = displayNameOf(currentUser) + "님";
     memberBtn.textContent = "로그아웃";
@@ -391,8 +401,35 @@ function refreshMemberUI() {
     memberName.textContent = "";
     memberBtn.textContent = "로그인 · 회원가입";
   }
-  $id("commentWrite").hidden = !currentUser;
-  $id("commentLocked").hidden = !!currentUser;
+  let canWrite = false;
+  if (!currentUser) {
+    lockedText.textContent = "댓글은 회원만 쓸 수 있어요";
+    lockedBtn.textContent = "로그인 · 회원가입"; lockedBtn.hidden = false;
+  } else if (myProfile && myProfile.banned) {
+    lockedText.textContent = "관리자에 의해 댓글 이용이 제한된 계정이에요.";
+    lockedBtn.hidden = true;
+  } else if (!profileComplete(myProfile)) {
+    lockedText.textContent = "댓글을 쓰려면 실명 등 정보를 한 번만 입력해 주세요";
+    lockedBtn.textContent = "정보 입력하기"; lockedBtn.hidden = false;
+  } else {
+    canWrite = true;
+  }
+  $id("commentWrite").hidden = !canWrite;
+  locked.hidden = canWrite;
+}
+let profileSeq = 0;   // 가장 마지막에 요청한 결과만 반영 (가입 직후 꼬임 방지)
+async function loadMyProfile() {
+  const my = ++profileSeq;
+  if (!currentUser) { myProfile = null; return; }
+  let result = {};
+  try {
+    const { db, fs } = await fb();
+    const snap = await fs.getDoc(fs.doc(db, "users", currentUser.uid));
+    result = snap.exists() ? snap.data() : {};
+  } catch (e) {
+    console.warn("[공지앱] 회원 정보 불러오기 실패:", e.message);
+  }
+  if (my === profileSeq) myProfile = result;
 }
 function authSay(text, ok) {
   authMsg.textContent = text;
@@ -413,6 +450,12 @@ function switchTab(tab) {
   document.querySelectorAll(".auth__tab").forEach((b) => b.classList.toggle("is-on", b.dataset.tab === tab));
   $id("loginForm").hidden = tab !== "login";
   $id("signupForm").hidden = tab !== "signup";
+  $id("profileForm").hidden = tab !== "profile";
+  document.querySelector(".auth__tabs").hidden = tab === "profile";
+  if (tab === "profile") {
+    $id("profNick").value = (myProfile && (myProfile.nickname || myProfile.name)) || (currentUser && currentUser.displayName) || "";
+    $id("profReal").value = (myProfile && myProfile.realName) || "";
+  }
   authSay("", true);
 }
 function authErrorText(code) {
@@ -432,7 +475,29 @@ function authErrorText(code) {
 document.querySelectorAll(".auth__tab").forEach((b) => b.addEventListener("click", () => switchTab(b.dataset.tab)));
 $id("authClose").addEventListener("click", closeAuth);
 $id("authBackdrop").addEventListener("click", closeAuth);
-$id("commentLoginBtn").addEventListener("click", () => openAuth("login"));
+$id("commentLoginBtn").addEventListener("click", () => openAuth(currentUser ? "profile" : "login"));
+
+// 동의 체크: '모두 동의'와 개별 항목 연동
+function wireConsent(prefix) {
+  const all = $id(prefix + "AgreeAll");
+  const items = document.querySelectorAll("." + prefix + "Agree");
+  all.addEventListener("change", () => items.forEach((c) => (c.checked = all.checked)));
+  items.forEach((c) => c.addEventListener("change", () => {
+    all.checked = Array.from(items).every((x) => x.checked);
+  }));
+}
+function allAgreed(prefix) {
+  return Array.from(document.querySelectorAll("." + prefix + "Agree")).every((c) => c.checked);
+}
+wireConsent("sign");
+wireConsent("prof");
+
+function checkNames(nick, real) {
+  if (!nick) return "활동명을 입력해 주세요.";
+  if (!real) return "실명을 입력해 주세요.";
+  if (real.length < 2) return "실명을 정확히 입력해 주세요.";
+  return "";
+}
 
 memberBtn.addEventListener("click", async () => {
   if (currentUser) {
@@ -450,33 +515,74 @@ $id("loginSubmit").addEventListener("click", async () => {
   if (!email || !pw) return authSay("이메일과 비밀번호를 입력해 주세요.", false);
   try {
     const { auth, au } = await fb();
-    await au.signInWithEmailAndPassword(auth, email, pw);
+    const cred = await au.signInWithEmailAndPassword(auth, email, pw);
+    currentUser = cred.user;
+    await loadMyProfile();
+    refreshMemberUI();
+    if (!profileComplete(myProfile) && !(myProfile && myProfile.banned)) {
+      switchTab("profile");
+      authSay("로그인됐어요! 댓글을 쓰려면 정보를 한 번만 입력해 주세요.", true);
+      return;
+    }
     authSay("로그인됐어요!", true);
     setTimeout(closeAuth, 500);
   } catch (e) { authSay(authErrorText(e.code), false); }
 });
 
 $id("signupSubmit").addEventListener("click", async () => {
-  const name = $id("signName").value.trim();
+  const nickname = $id("signNick").value.trim();
+  const realName = $id("signReal").value.trim();
   const email = $id("signEmail").value.trim();
   const pw = $id("signPw").value;
   const pw2 = $id("signPw2").value;
-  if (!name) return authSay("이름을 입력해 주세요.", false);
+  const nameErr = checkNames(nickname, realName);
+  if (nameErr) return authSay(nameErr, false);
   if (!email) return authSay("이메일을 입력해 주세요.", false);
   if (pw.length < 6) return authSay("비밀번호는 6자 이상이어야 해요.", false);
   if (pw !== pw2) return authSay("비밀번호가 서로 달라요.", false);
+  if (!allAgreed("sign")) return authSay("필수 동의 항목에 모두 체크해 주세요.", false);
+  const btn = $id("signupSubmit"); btn.disabled = true;
   try {
     const { auth, au, db, fs } = await fb();
     const cred = await au.createUserWithEmailAndPassword(auth, email, pw);
-    await au.updateProfile(cred.user, { displayName: name });
-    await fs.setDoc(fs.doc(db, "users", cred.user.uid), {
-      name, email: cred.user.email, createdAt: fs.serverTimestamp(),
-    });
+    await au.updateProfile(cred.user, { displayName: nickname });
+    const profile = {
+      nickname, realName, email: cred.user.email,
+      agreed: true, agreeVersion: AGREE_VERSION,
+      agreedAt: fs.serverTimestamp(), createdAt: fs.serverTimestamp(),
+    };
+    await fs.setDoc(fs.doc(db, "users", cred.user.uid), profile);
     currentUser = auth.currentUser;
+    await loadMyProfile();
     refreshMemberUI();
     authSay("가입을 환영해요! 🎉", true);
     setTimeout(closeAuth, 700);
   } catch (e) { authSay(authErrorText(e.code), false); }
+  finally { btn.disabled = false; }
+});
+
+// 기존 회원 정보 추가 입력
+$id("profileSubmit").addEventListener("click", async () => {
+  if (!currentUser) return switchTab("login");
+  const nickname = $id("profNick").value.trim();
+  const realName = $id("profReal").value.trim();
+  const nameErr = checkNames(nickname, realName);
+  if (nameErr) return authSay(nameErr, false);
+  if (!allAgreed("prof")) return authSay("필수 동의 항목에 모두 체크해 주세요.", false);
+  const btn = $id("profileSubmit"); btn.disabled = true;
+  try {
+    const { auth, au, db, fs } = await fb();
+    await fs.setDoc(fs.doc(db, "users", currentUser.uid), {
+      nickname, realName, email: currentUser.email,
+      agreed: true, agreeVersion: AGREE_VERSION, agreedAt: fs.serverTimestamp(),
+    }, { merge: true });
+    await au.updateProfile(auth.currentUser, { displayName: nickname });
+    await loadMyProfile();
+    refreshMemberUI();
+    authSay("저장했어요! 이제 댓글을 쓸 수 있어요.", true);
+    setTimeout(closeAuth, 700);
+  } catch (e) { authSay("저장하지 못했어요. 다시 시도해 주세요.", false); }
+  finally { btn.disabled = false; }
 });
 
 $id("resetPwBtn").addEventListener("click", async () => {
@@ -492,8 +598,9 @@ $id("resetPwBtn").addEventListener("click", async () => {
 async function watchAuth() {
   if (!HAS_FIREBASE) { refreshMemberUI(); return; }
   const { auth, au } = await fb();
-  au.onAuthStateChanged(auth, (u) => {
+  au.onAuthStateChanged(auth, async (u) => {
     currentUser = u;
+    await loadMyProfile();
     refreshMemberUI();
     if (!modal.hidden && openNoticeId) loadComments(openNoticeId);
   });
@@ -566,6 +673,8 @@ async function loadComments(noticeId) {
 
 $id("commentSubmit").addEventListener("click", async () => {
   if (!currentUser) return openAuth("login");
+  if (myProfile && myProfile.banned) return alert("댓글 이용이 제한된 계정이에요.");
+  if (!profileComplete(myProfile)) return openAuth("profile");
   const input = $id("commentInput");
   const text = input.value.trim();
   if (!text) return;
@@ -576,7 +685,7 @@ $id("commentSubmit").addEventListener("click", async () => {
     const { db, fs } = await fb();
     await fs.addDoc(fs.collection(db, "notices", openNoticeId, "comments"), {
       uid: currentUser.uid,
-      name: displayNameOf(currentUser).slice(0, 30),
+      name: myProfile.nickname,
       text: text.slice(0, 500),
       createdAt: fs.serverTimestamp(),
     });
