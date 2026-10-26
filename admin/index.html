@@ -107,6 +107,7 @@
       font-size:15px; margin-bottom:16px; line-height:1.5;
     }
     .logout { position:absolute; top:20px; right:20px; }
+    .pwbtn { position:absolute; top:20px; left:20px; }
   </style>
 </head>
 <body>
@@ -133,6 +134,7 @@
         체크하면 이 기기는 계속 로그인돼요. 체크 안 하면 창을 닫을 때 자동 로그아웃돼요.
       </p>
       <button class="btn-main" id="loginBtn">로그인</button>
+      <button class="btn-ghost" id="forgotBtn" style="display:block;margin:12px auto 0;">비밀번호를 잊으셨나요?</button>
       <button id="installAppBtn" style="display:none;width:100%;margin-top:12px;font-family:'Jua',sans-serif;font-size:18px;cursor:pointer;border:none;border-radius:999px;padding:13px 26px;color:#fff;background:var(--coral);box-shadow:inset 0 -3px 0 rgba(150,50,20,0.35);">📲 이 화면을 관리자 앱으로 설치</button>
       <div id="loginMsg"></div>
     </div>
@@ -140,6 +142,18 @@
     <!-- 공지 작성 -->
     <div id="adminPanel" class="hidden">
       <button class="btn-ghost logout" id="logoutBtn">로그아웃</button>
+      <button class="btn-ghost pwbtn" id="pwChangeBtn">🔑 비밀번호 변경</button>
+
+      <div class="panel hidden" id="pwPanel">
+        <label>지금 비밀번호</label>
+        <input id="pwCur" type="password" autocomplete="current-password" />
+        <label>새 비밀번호 <small style="font-weight:400;color:#8a8272;">(6자 이상)</small></label>
+        <input id="pwNew" type="password" autocomplete="new-password" />
+        <label>새 비밀번호 확인</label>
+        <input id="pwNew2" type="password" autocomplete="new-password" />
+        <button class="btn-main" id="pwSave">비밀번호 바꾸기</button>
+        <div id="pwMsg"></div>
+      </div>
 
       <div class="panel">
         <div class="stat-cards">

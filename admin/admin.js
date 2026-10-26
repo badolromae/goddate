@@ -39,7 +39,8 @@ async function start() {
 
   const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
   const { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
-          setPersistence, browserLocalPersistence, browserSessionPersistence } =
+          setPersistence, browserLocalPersistence, browserSessionPersistence,
+          EmailAuthProvider, reauthenticateWithCredential, updatePassword, sendPasswordResetEmail } =
     await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js");
   const {
     getFirestore, collection, addDoc, updateDoc, deleteDoc, doc,
@@ -93,6 +94,40 @@ async function start() {
   });
 
   $("logoutBtn").addEventListener("click", () => signOut(auth));
+
+  // ----- 비밀번호 변경 (로그인한 본인) -----
+  $("pwChangeBtn").addEventListener("click", () => {
+    $("pwPanel").classList.toggle("hidden");
+    $("pwMsg").textContent = ""; $("pwMsg").className = "";
+  });
+  $("pwSave").addEventListener("click", async () => {
+    const cur = $("pwCur").value, nw = $("pwNew").value, nw2 = $("pwNew2").value;
+    if (!cur) return showMsg($("pwMsg"), "지금 비밀번호를 입력해 주세요.", false);
+    if (nw.length < 6) return showMsg($("pwMsg"), "새 비밀번호는 6자 이상이어야 해요.", false);
+    if (nw !== nw2) return showMsg($("pwMsg"), "새 비밀번호가 서로 달라요.", false);
+    try {
+      const u = auth.currentUser;
+      await reauthenticateWithCredential(u, EmailAuthProvider.credential(u.email, cur));
+      await updatePassword(u, nw);
+      $("pwCur").value = $("pwNew").value = $("pwNew2").value = "";
+      showMsg($("pwMsg"), "비밀번호를 바꿨어요. 다음 로그인부터 새 비밀번호를 쓰세요.", true);
+    } catch (e) {
+      const m = (e.code === "auth/invalid-credential" || e.code === "auth/wrong-password") ? "지금 비밀번호가 맞지 않아요."
+              : e.code === "auth/weak-password" ? "새 비밀번호가 너무 쉬워요. 6자 이상으로 바꿔 주세요."
+              : e.code === "auth/too-many-requests" ? "시도가 너무 많아요. 잠시 후 다시 해주세요."
+              : "바꾸지 못했어요. 다시 시도해 주세요.";
+      showMsg($("pwMsg"), m, false);
+    }
+  });
+  // ----- 비밀번호 찾기 (로그인 화면) -----
+  $("forgotBtn").addEventListener("click", async () => {
+    const email = $("email").value.trim();
+    if (!email) return showMsg($("loginMsg"), "위 이메일 칸에 관리자 이메일을 먼저 적어 주세요.", false);
+    try {
+      await sendPasswordResetEmail(auth, email);
+      showMsg($("loginMsg"), "비밀번호 재설정 메일을 보냈어요. 메일함(스팸함 포함)을 확인해 주세요.", true);
+    } catch (e) { showMsg($("loginMsg"), "메일을 보내지 못했어요. 이메일을 확인해 주세요.", false); }
+  });
 
   // 사진 파일 고르면 미리보기
   $("nImageFile").addEventListener("change", (e) => {
