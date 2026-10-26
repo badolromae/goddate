@@ -6,13 +6,15 @@
   --serif:"Cormorant Garamond","Noto Serif KR",Georgia,serif;
   --serif-kr:"Noto Serif KR","Cormorant Garamond",serif;
   --sans:"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
-  color-scheme:light;
+  color-scheme:light dark;
 }
 *,*::before,*::after{box-sizing:border-box}
 html,body{margin:0;min-height:100%}
 body{color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased;background:#E8D9CB;padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
 /* 초대장 배경 (iOS에서도 고정되도록 별도 레이어) */
 body::before{content:"";position:fixed;inset:0;z-index:-1;background:#E8D9CB url(bg.jpg) center/cover no-repeat}
+
+
 button,input{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--gold);outline-offset:3px}
@@ -37,3 +39,21 @@ h1{margin:0;font-family:var(--serif-kr);font-size:26px;font-weight:600;letter-sp
 .toast{position:fixed;left:50%;top:calc(16px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper-solid);padding:12px 20px;border-radius:999px;font-weight:500;z-index:40;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;text-align:center}
 .toast.show{opacity:1}
 .toast.err{background:var(--warn);color:#fff}
+
+/* 폰이 다크 모드일 때: 브라우저가 색을 억지로 바꾸지 않도록 같은 디자인의 '밤' 버전을 직접 제공 */
+@media (prefers-color-scheme:dark){
+  :root{
+    --paper:rgba(38,25,19,.86); --paper-solid:#2A1C15;
+    --ink:#F4E8DC; --muted:#C9B19E; --line:rgba(212,168,101,.25);
+    --gold:#D4A865; --gold-soft:rgba(212,168,101,.45);
+    --rust:#C0603A; --ok:#9DBB6E; --ok-soft:rgba(157,187,110,.15); --warn:#F09A84; --warn-soft:rgba(240,154,132,.14);
+  }
+  body{background:#2A1C15}
+  body::before{background-color:#2A1C15;background-image:linear-gradient(rgba(30,18,12,.55),rgba(30,18,12,.55)),url(bg.jpg)}
+  .field{background:rgba(255,255,255,.07);color:var(--ink)}
+  .field::placeholder{color:rgba(201,177,158,.7)}
+  .field:focus{background:rgba(255,255,255,.12)}
+  .ghost{background:rgba(255,255,255,.06)}
+  .primary{background:var(--gold);color:#2A1C15}
+  .card{box-shadow:0 10px 40px rgba(0,0,0,.35)}
+}

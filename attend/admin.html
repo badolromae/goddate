@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="color-scheme" content="light only">
+<meta name="color-scheme" content="light dark">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#B88A4A">
@@ -29,13 +29,33 @@
 .new .field{flex:1;min-width:0}
 .new .primary{width:auto;white-space:nowrap}
 .mlist{list-style:none;margin:0;padding:0}
-.mlist button{width:100%;text-align:left;display:flex;justify-content:space-between;gap:12px;align-items:center;background:rgba(255,255,255,.6);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:8px}
+.mlist button{width:100%;text-align:left;display:flex;justify-content:space-between;gap:12px;align-items:center;background:var(--item,rgba(255,255,255,.6));border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:8px}
 .mlist button:hover{border-color:var(--gold)}
 .mlist .t{font-family:var(--serif-kr);font-weight:700;font-size:17px}
 .mlist .d{font-size:14px;color:var(--muted);white-space:nowrap}
 .tag{font-size:12px;border-radius:999px;padding:2px 8px;background:var(--ok-soft);color:var(--ok);margin-left:8px;font-weight:500}
 .tag.closed{background:rgba(0,0,0,.05);color:var(--muted)}
 .empty{padding:28px 8px;text-align:center;color:var(--muted)}
+
+/* 관리자 관리 */
+.topbtns{display:flex;gap:6px}
+.addform{display:grid;gap:8px;margin-bottom:18px}
+.addform .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+@media (max-width:520px){.addform .row2{grid-template-columns:1fr}}
+.addform .field{font-size:16px;padding:12px}
+.note{font-size:13px;color:var(--muted);margin:0;word-break:keep-all}
+.alist{list-style:none;margin:0;padding:0}
+.alist li{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--line)}
+.alist li:last-child{border-bottom:0}
+.alist .n{font-family:var(--serif-kr);font-weight:700}
+.alist .e{font-size:13px;color:var(--muted);word-break:break-all}
+.sec-title{font-family:var(--serif-kr);font-size:18px;margin:0 0 12px}
+.roles{display:flex;gap:16px;flex-wrap:wrap;padding:4px 2px}
+.chk{display:flex;align-items:center;gap:6px;font-weight:500}
+.chk input{width:18px;height:18px;accent-color:var(--rust)}
+.chips{display:flex;gap:6px;margin-top:6px}
+.rchip{border:1px solid var(--line);background:var(--item,rgba(255,255,255,.6));border-radius:999px;padding:3px 10px;font-size:13px;color:var(--muted)}
+.rchip.on{background:var(--rust);border-color:var(--rust);color:#fff}
 
 /* 모임 출석 화면 */
 .stage{padding:28px 20px 22px;text-align:center;margin-bottom:16px}
@@ -47,7 +67,7 @@
 .qrbox{display:inline-block;background:#fff;padding:12px;border-radius:12px;line-height:0;box-shadow:0 4px 16px rgba(80,40,20,.12)}
 .qrbox img,.qrbox canvas{width:210px;height:210px}
 .acts{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:20px}
-.acts button{border:1px solid var(--line);background:rgba(255,255,255,.65);border-radius:999px;padding:9px 14px;font-size:14px;font-weight:500}
+.acts button{border:1px solid var(--line);background:var(--item,rgba(255,255,255,.65));border-radius:999px;padding:9px 14px;font-size:14px;font-weight:500}
 .tally{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--gold);padding-bottom:8px}
 .tally b{font-family:var(--serif);font-size:38px;font-weight:600;line-height:1}
 .tally b small{font-family:var(--sans);font-size:15px;font-weight:500;color:var(--muted);margin-left:6px}
@@ -64,6 +84,7 @@ ol.list{list-style:none;margin:0;padding:0}
 
 /* QR 크게 띄우기 */
 .big{position:fixed;inset:0;z-index:30;background:#E8D9CB url(bg.jpg) center/cover no-repeat;display:flex;align-items:center;justify-content:center;padding:24px}
+.big{color-scheme:light;--ink:#3A2419;--muted:#7A6152;--gold:#B88A4A;--rust:#9C4A2A;color:#3A2419}
 .big .arch{background:rgba(252,247,241,.82);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);padding:clamp(48px,9vh,96px) clamp(32px,5vw,72px) clamp(20px,3vh,32px);text-align:center;display:flex;flex-direction:column;align-items:center;gap:clamp(10px,2vh,18px);max-height:100%}
 .big h2{margin:0;font-family:var(--serif-kr);font-size:clamp(24px,4vw,44px);font-weight:700;word-break:keep-all;line-height:1.25;max-width:13em}
 .big p{margin:0;font-size:clamp(15px,2.2vw,20px);color:var(--muted)}
@@ -71,6 +92,7 @@ ol.list{list-style:none;margin:0;padding:0}
 .big .qrbox img,.big .qrbox canvas{width:min(56vw,46vh);height:min(56vw,46vh)}
 .big .count{font-family:var(--serif-kr);font-size:clamp(18px,2.6vw,24px);font-weight:700;color:var(--rust)}
 .big .x{position:absolute;top:calc(16px + env(safe-area-inset-top,0px));right:16px}
+@media (prefers-color-scheme:dark){:root{--item:rgba(255,255,255,.06)} .big .x{background:rgba(255,255,255,.7);color:#3A2419}}
 </style>
 </head>
 <body>
@@ -89,7 +111,7 @@ ol.list{list-style:none;margin:0;padding:0}
 
 <!-- 모임 목록 -->
 <div class="wrap" id="home" hidden>
-  <div class="top"><h1>출석부</h1><button class="ghost" id="logout">로그아웃</button></div>
+  <div class="top"><h1>출석부</h1><div class="topbtns"><button class="ghost" id="toAdmins" hidden>관리자 관리</button><button class="ghost" id="logout">로그아웃</button></div></div>
   <section class="card panel">
   <div class="new">
     <input class="field" id="newTitle" placeholder="모임 제목 (예: 10월 정기모임)" maxlength="60">
@@ -100,6 +122,29 @@ ol.list{list-style:none;margin:0;padding:0}
 </div>
 
 <!-- 모임 출석 화면 -->
+<div class="wrap" id="admins" hidden>
+  <div class="top"><button class="ghost" id="adminsBack">← 목록</button></div>
+  <section class="card panel">
+    <h2 class="sec-title">관리자 추가</h2>
+    <div class="addform">
+      <div class="row2">
+        <input class="field" id="aName" placeholder="이름 (예: 홍길동)" maxlength="20">
+        <input class="field" id="aEmail" type="email" placeholder="이메일" autocomplete="off">
+      </div>
+      <input class="field" id="aPw" type="text" placeholder="처음 비밀번호 (새 계정일 때만)" autocomplete="off">
+      <div class="roles">
+        <label class="chk"><input type="checkbox" id="rNotice"> 공지 관리자</label>
+        <label class="chk"><input type="checkbox" id="rAttend" checked> 출석부 관리자</label>
+      </div>
+      <p class="note">갓데이트에 이미 가입한 회원이면 비밀번호는 비워 두세요. 쓰던 비밀번호로 로그인하면 됩니다. 새 계정이면 처음 비밀번호를 정해서 직접 알려 주세요.</p>
+      <button class="primary" id="aAdd">관리자로 추가</button>
+    </div>
+    <h2 class="sec-title">추가된 관리자</h2>
+    <ul class="alist" id="alist"></ul>
+    <p class="note" style="margin-top:12px">권한 버튼을 누르면 켜고 끌 수 있습니다. 공지 관리자는 갓데이트 관리자 앱에서 공지·회원을 관리할 수 있습니다. 관리자 추가는 대표 관리자만 할 수 있습니다.</p>
+  </section>
+</div>
+
 <div class="wrap" id="meet" hidden>
   <div class="top"><button class="ghost" id="back">← 목록</button><button class="ghost" id="toggle"></button></div>
   <section class="card stage">
@@ -139,8 +184,8 @@ ol.list{list-style:none;margin:0;padding:0}
 <script>if('serviceWorker' in navigator){ addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{})); }</script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, getDocs, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, getDocs, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 const firebaseConfig = (window.APP_CONFIG || {}).firebase;
 if (!firebaseConfig) { document.body.innerHTML = '<p style="padding:40px;text-align:center">설정 파일(config.js)을 찾지 못했습니다. attend 폴더가 goddate 저장소 안에 있는지 확인해 주세요.</p>'; throw new Error('no config'); }
 
@@ -152,7 +197,7 @@ const todayStr=()=>new Date().toLocaleDateString('sv-SE');
 const fmtDate=d=>d?new Date(d+'T00:00').toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'short'}):'';
 const fmtTime=ts=>ts?ts.toDate().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}):'';
 const checkinUrl=id=>new URL('index.html?m='+id, location.href).href;
-function show(id){ ['loading','login','home','meet'].forEach(x=>$('#'+x).hidden=x!==id); }
+function show(id){ ['loading','login','home','meet','admins'].forEach(x=>$('#'+x).hidden=x!==id); }
 
 /* ---------- 로그인 ---------- */
 $('#loginBtn').addEventListener('click',async()=>{
@@ -166,7 +211,7 @@ $('#logout').addEventListener('click',()=>signOut(auth));
 let unList=null, notAdmin=false;
 onAuthStateChanged(auth,u=>{
   notAdmin=false;
-  if(!u){ if(unList){unList();unList=null;} closeMeeting(); show('login'); return; }
+  if(!u){ if(unList){unList();unList=null;} watchAdmins(null); closeMeeting(); show('login'); return; }
   if(!unList){
     unList=onSnapshot(query(collection(db,'meetings'),orderBy('createdAt','desc')),s=>{
       const ms=s.docs.map(d=>({id:d.id,...d.data()}));
@@ -177,12 +222,85 @@ onAuthStateChanged(auth,u=>{
       if(e.code==='permission-denied'){
         // 일반 회원 계정: 공지 앱 로그인은 그대로 두고, 여기서만 관리자 로그인을 요청
         notAdmin=true; if(unList){unList();unList=null;} closeMeeting(); show('login');
-        $('#loginMsg').innerHTML='<p class="msg warn">관리자 계정이 아닙니다. 공지 관리자 계정으로 로그인해 주세요.</p>';
+        $('#loginMsg').innerHTML='<p class="msg warn">출석부 관리자 계정이 아닙니다. 관리자 계정으로 로그인해 주세요.</p>';
       } else toast('목록을 불러오지 못했습니다',true);
     });
   }
+  watchAdmins(u);
   route();
 });
+
+/* ---------- 관리자 관리 (대표 관리자 전용) ---------- */
+// staff/{이메일} = { name, notice: 공지 관리자, attend: 출석부 관리자 }
+// 목록 전체를 읽을 수 있는 사람 = 대표 관리자 → '관리자 관리' 버튼 표시
+let unAdmins=null, adminRows=[], isOwner=false;
+const lc=v=>String(v||'').trim().toLowerCase();
+function watchAdmins(u){
+  if(unAdmins){unAdmins();unAdmins=null;}
+  isOwner=false; $('#toAdmins').hidden=true;
+  if(!u) return;
+  unAdmins=onSnapshot(collection(db,'staff'),s=>{
+    adminRows=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
+    isOwner=true; $('#toAdmins').hidden=false;
+    renderAdmins();
+    if(location.hash==='#admins') route();
+  },()=>{ isOwner=false; $('#toAdmins').hidden=true; });
+}
+function chip(a,role,label){
+  const on=a[role]===true;
+  return '<button class="rchip'+(on?' on':'')+'" data-id="'+esc(a.id)+'" data-role="'+role+'" aria-pressed="'+on+'">'+(on?'✓ ':'')+label+'</button>';
+}
+function renderAdmins(){
+  $('#alist').innerHTML = adminRows.length ? adminRows.map(a=>
+    '<li><div><div class="n">'+esc(a.name||'(이름 없음)')+'</div><div class="e">'+esc(a.id)+'</div><div class="chips">'+chip(a,'notice','공지')+chip(a,'attend','출석부')+'</div></div><button class="ghost danger" data-rm="'+esc(a.id)+'">삭제</button></li>'
+  ).join('') : '<li class="empty" style="justify-content:center">아직 추가한 관리자가 없습니다.</li>';
+}
+// 새 계정을 만들 때 지금 로그인한 대표 관리자가 로그아웃되지 않도록 보조 연결을 사용
+let helperAuth=null;
+function getHelperAuth(){ if(!helperAuth) helperAuth=getAuth(initializeApp(firebaseConfig,'attend-helper')); return helperAuth; }
+$('#aAdd').addEventListener('click',async()=>{
+  const name=$('#aName').value.trim(), email=lc($('#aEmail').value), pw=$('#aPw').value;
+  const notice=$('#rNotice').checked, attend=$('#rAttend').checked;
+  if(!name){ toast('이름을 입력해 주세요',true); return; }
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ toast('이메일 형식을 확인해 주세요',true); return; }
+  if(!notice && !attend){ toast('공지·출석부 중 하나 이상 선택해 주세요',true); return; }
+  if(pw && pw.length<6){ toast('비밀번호는 6자 이상이어야 합니다',true); return; }
+  const btn=$('#aAdd'); btn.disabled=true;
+  let note='';
+  try{
+    if(pw){
+      try{
+        const h=getHelperAuth();
+        await createUserWithEmailAndPassword(h,email,pw);
+        await signOut(h);
+        note=' (새 계정 생성)';
+      }catch(e){
+        if(e.code==='auth/email-already-in-use') note=' (이미 있는 계정이라 권한만 주었습니다)';
+        else { toast('계정을 만들지 못했습니다: '+(e.code||''),true); btn.disabled=false; return; }
+      }
+    }
+    await setDoc(doc(db,'staff',email),{name,notice,attend,updatedAt:serverTimestamp(),updatedBy:lc(auth.currentUser.email)});
+    $('#aName').value=''; $('#aEmail').value=''; $('#aPw').value='';
+    toast(name+' 님을 관리자로 추가했습니다'+note);
+  }catch(e){ toast(e.code==='permission-denied'?'대표 관리자만 관리자를 추가할 수 있습니다':'추가하지 못했습니다',true); }
+  btn.disabled=false;
+});
+$('#alist').addEventListener('click',async e=>{
+  const c=e.target.closest('[data-role]');
+  if(c){
+    const a=adminRows.find(x=>x.id===c.dataset.id), role=c.dataset.role, next=!(a[role]===true);
+    try{ await updateDoc(doc(db,'staff',a.id),{[role]:next,updatedAt:serverTimestamp(),updatedBy:lc(auth.currentUser.email)}); toast((a.name||a.id)+' 님 '+(role==='notice'?'공지':'출석부')+' 권한 '+(next?'켜짐':'꺼짐')); }
+    catch(err){ toast('바꾸지 못했습니다',true); }
+    return;
+  }
+  const b=e.target.closest('[data-rm]'); if(!b) return;
+  const a=adminRows.find(x=>x.id===b.dataset.rm);
+  if(!confirm((a&&a.name?a.name+' 님을 ':'')+'관리자에서 삭제할까요? (계정은 남고 권한만 사라집니다)')) return;
+  try{ await deleteDoc(doc(db,'staff',b.dataset.rm)); toast('삭제했습니다'); }
+  catch(err){ toast('삭제하지 못했습니다',true); }
+});
+$('#toAdmins').addEventListener('click',()=>location.hash='admins');
+$('#adminsBack').addEventListener('click',()=>location.hash='');
 
 /* ---------- 목록 ---------- */
 $('#create').addEventListener('click',async()=>{
@@ -268,7 +386,9 @@ $('#back').addEventListener('click',()=>location.hash='');
 function route(){
   if(!auth.currentUser || notAdmin) return;
   const m=location.hash.match(/^#m=([A-Za-z0-9]+)$/);
-  if(m) openMeeting(m[1]); else { closeMeeting(); show('home'); }
+  if(m) openMeeting(m[1]);
+  else if(location.hash==='#admins' && isOwner){ closeMeeting(); show('admins'); }
+  else { closeMeeting(); show('home'); }
 }
 window.addEventListener('hashchange',route);
 </script>
