@@ -332,6 +332,17 @@ async function start() {
     const firstPanel = $("adminPanel").querySelector(".panel");
     firstPanel.after(panel);
 
+    // 대표 관리자에게만: 관리자 추가(공지·출석부) 바로가기
+    getDocs(collection(db, "staff")).then(() => {
+      const sp = document.createElement("div");
+      sp.className = "panel";
+      sp.innerHTML = `
+        <button class="stats-toggle-btn" id="staffLink">👑 관리자 추가 · 관리 (공지 / 출석부)</button>
+        <p style="font-size:14px;color:#8a8272;margin-top:8px;line-height:1.5;">누르면 관리자 관리 화면으로 이동해요. 공지 관리자와 출석부 관리자를 함께 추가·해제할 수 있어요.</p>`;
+      panel.after(sp);
+      $("staffLink").addEventListener("click", () => { location.href = "../attend/admin.html#admins"; });
+    }).catch(() => {});
+
     $("memberToggle").addEventListener("click", () => {
       const box = $("memberPanel");
       box.classList.toggle("hidden");
