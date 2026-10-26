@@ -1,5 +1,5 @@
 // 출석부 관리 앱: 항상 최신 파일을 먼저 받아오고, 인터넷이 끊겼을 때만 저장본 사용
-const CACHE = 'attend-v4';
+const CACHE = 'attend-v5';
 const SHELL = ['./admin.html', './style.css', './bg.jpg', './icons/icon-192.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener('activate', e => {

@@ -38,7 +38,7 @@
 .empty{padding:28px 8px;text-align:center;color:var(--muted)}
 
 /* 관리자 관리 */
-.topbtns{display:flex;gap:6px}
+.topbtns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 .addform{display:grid;gap:8px;margin-bottom:18px}
 .addform .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 @media (max-width:520px){.addform .row2{grid-template-columns:1fr}}
@@ -107,11 +107,12 @@ ol.list{list-style:none;margin:0;padding:0}
   <input class="field" id="pw" type="password" placeholder="비밀번호" autocomplete="current-password">
   <div id="loginMsg"></div>
   <button class="primary" id="loginBtn">로그인</button>
+  <button class="ghost" id="forgotBtn" type="button" style="justify-self:center">비밀번호를 잊으셨나요?</button>
 </form>
 
 <!-- 모임 목록 -->
 <div class="wrap" id="home" hidden>
-  <div class="top"><h1>출석부</h1><div class="topbtns"><button class="ghost" id="toAdmins" hidden>관리자 관리</button><button class="ghost" id="logout">로그아웃</button></div></div>
+  <div class="top"><h1>출석부</h1><div class="topbtns"><button class="ghost" id="toAdmins" hidden>관리자 관리</button><button class="ghost" id="toPw">비밀번호 변경</button><button class="ghost" id="logout">로그아웃</button></div></div>
   <section class="card panel">
   <div class="new">
     <input class="field" id="newTitle" placeholder="모임 제목 (예: 10월 정기모임)" maxlength="60">
@@ -142,6 +143,21 @@ ol.list{list-style:none;margin:0;padding:0}
     <h2 class="sec-title">추가된 관리자</h2>
     <ul class="alist" id="alist"></ul>
     <p class="note" style="margin-top:12px">권한 버튼을 누르면 켜고 끌 수 있습니다. 공지 관리자는 갓데이트 관리자 앱에서 공지·회원을 관리할 수 있습니다. 관리자 추가는 대표 관리자만 할 수 있습니다.</p>
+  </section>
+</div>
+
+<div class="wrap" id="pwview" hidden>
+  <div class="top"><button class="ghost" id="pwBack">← 목록</button></div>
+  <section class="card panel">
+    <h2 class="sec-title">비밀번호 변경</h2>
+    <div class="addform">
+      <input class="field" id="pwCur" type="password" placeholder="지금 비밀번호" autocomplete="current-password">
+      <input class="field" id="pwNew" type="password" placeholder="새 비밀번호 (6자 이상)" autocomplete="new-password">
+      <input class="field" id="pwNew2" type="password" placeholder="새 비밀번호 확인" autocomplete="new-password">
+      <div id="pwMsg"></div>
+      <button class="primary" id="pwSave">비밀번호 바꾸기</button>
+      <button class="ghost" id="pwForgot" style="justify-self:center">지금 비밀번호가 기억나지 않아요</button>
+    </div>
   </section>
 </div>
 
@@ -184,7 +200,7 @@ ol.list{list-style:none;margin:0;padding:0}
 <script>if('serviceWorker' in navigator){ addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{})); }</script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, createUserWithEmailAndPassword, EmailAuthProvider, reauthenticateWithCredential, updatePassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, getDocs, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 const firebaseConfig = (window.APP_CONFIG || {}).firebase;
 if (!firebaseConfig) { document.body.innerHTML = '<p style="padding:40px;text-align:center">설정 파일(config.js)을 찾지 못했습니다. attend 폴더가 goddate 저장소 안에 있는지 확인해 주세요.</p>'; throw new Error('no config'); }
@@ -197,7 +213,7 @@ const todayStr=()=>new Date().toLocaleDateString('sv-SE');
 const fmtDate=d=>d?new Date(d+'T00:00').toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'short'}):'';
 const fmtTime=ts=>ts?ts.toDate().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}):'';
 const checkinUrl=id=>new URL('index.html?m='+id, location.href).href;
-function show(id){ ['loading','login','home','meet','admins'].forEach(x=>$('#'+x).hidden=x!==id); }
+function show(id){ ['loading','login','home','meet','admins','pwview'].forEach(x=>$('#'+x).hidden=x!==id); }
 
 /* ---------- 로그인 ---------- */
 $('#loginBtn').addEventListener('click',async()=>{
@@ -302,6 +318,39 @@ $('#alist').addEventListener('click',async e=>{
 $('#toAdmins').addEventListener('click',()=>location.hash='admins');
 $('#adminsBack').addEventListener('click',()=>location.hash='');
 
+/* ---------- 비밀번호 변경 / 찾기 ---------- */
+const pwMsg=(t,ok)=>{ $('#pwMsg').innerHTML='<p class="msg '+(ok?'ok':'warn')+'">'+esc(t)+'</p>'; };
+$('#toPw').addEventListener('click',()=>{ ['pwCur','pwNew','pwNew2'].forEach(x=>$('#'+x).value=''); $('#pwMsg').innerHTML=''; location.hash='pw'; });
+$('#pwBack').addEventListener('click',()=>location.hash='');
+$('#pwSave').addEventListener('click',async()=>{
+  const cur=$('#pwCur').value, nw=$('#pwNew').value, nw2=$('#pwNew2').value;
+  if(!cur) return pwMsg('지금 비밀번호를 입력해 주세요.');
+  if(nw.length<6) return pwMsg('새 비밀번호는 6자 이상이어야 합니다.');
+  if(nw!==nw2) return pwMsg('새 비밀번호가 서로 다릅니다.');
+  const btn=$('#pwSave'); btn.disabled=true;
+  try{
+    const u=auth.currentUser;
+    await reauthenticateWithCredential(u,EmailAuthProvider.credential(u.email,cur));
+    await updatePassword(u,nw);
+    ['pwCur','pwNew','pwNew2'].forEach(x=>$('#'+x).value='');
+    pwMsg('비밀번호를 바꿨습니다. 다음 로그인부터 새 비밀번호를 쓰세요.',true);
+  }catch(e){
+    pwMsg(e.code==='auth/invalid-credential'||e.code==='auth/wrong-password'?'지금 비밀번호가 맞지 않습니다.'
+      :e.code==='auth/too-many-requests'?'시도가 너무 많습니다. 잠시 후 다시 해주세요.':'바꾸지 못했습니다. 다시 시도해 주세요.');
+  }
+  btn.disabled=false;
+});
+$('#pwForgot').addEventListener('click',async()=>{
+  try{ await sendPasswordResetEmail(auth,auth.currentUser.email); pwMsg('비밀번호 재설정 메일을 보냈습니다. 메일함(스팸함 포함)을 확인해 주세요.',true); }
+  catch(e){ pwMsg('메일을 보내지 못했습니다.'); }
+});
+$('#forgotBtn').addEventListener('click',async()=>{
+  const email=$('#email').value.trim();
+  if(!email){ $('#loginMsg').innerHTML='<p class="msg warn">위 이메일 칸에 이메일을 먼저 적어 주세요.</p>'; return; }
+  try{ await sendPasswordResetEmail(auth,email); $('#loginMsg').innerHTML='<p class="msg ok">비밀번호 재설정 메일을 보냈습니다. 메일함(스팸함 포함)을 확인해 주세요.</p>'; }
+  catch(e){ $('#loginMsg').innerHTML='<p class="msg warn">메일을 보내지 못했습니다. 이메일을 확인해 주세요.</p>'; }
+});
+
 /* ---------- 목록 ---------- */
 $('#create').addEventListener('click',async()=>{
   const title=$('#newTitle').value.trim();
@@ -388,6 +437,7 @@ function route(){
   const m=location.hash.match(/^#m=([A-Za-z0-9]+)$/);
   if(m) openMeeting(m[1]);
   else if(location.hash==='#admins' && isOwner){ closeMeeting(); show('admins'); }
+  else if(location.hash==='#pw'){ closeMeeting(); show('pwview'); }
   else { closeMeeting(); show('home'); }
 }
 window.addEventListener('hashchange',route);

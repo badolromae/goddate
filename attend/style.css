@@ -57,3 +57,4 @@ h1{margin:0;font-family:var(--serif-kr);font-size:26px;font-weight:600;letter-sp
   .primary{background:var(--gold);color:#2A1C15}
   .card{box-shadow:0 10px 40px rgba(0,0,0,.35)}
 }
+.msg.ok{background:var(--ok-soft);color:var(--ok)}
