@@ -39,6 +39,7 @@
     <!-- 헤더 -->
     <div class="memberbar">
       <span id="memberName" class="memberbar__name"></span>
+      <button id="memberPwBtn" class="memberbar__btn" hidden>비밀번호 변경</button>
       <button id="memberBtn" class="memberbar__btn">로그인 · 회원가입</button>
     </div>
 
@@ -185,6 +186,18 @@
           </div>
         </div>
         <button class="auth__main" id="profileSubmit">동의하고 저장하기</button>
+      </div>
+
+      <div class="auth__form" id="passwordForm" hidden>
+        <p class="auth__notice">비밀번호를 바꿉니다.</p>
+        <label>지금 비밀번호</label>
+        <input id="pwCur" type="password" autocomplete="current-password" placeholder="지금 쓰는 비밀번호" />
+        <label>새 비밀번호 <small>(6자 이상)</small></label>
+        <input id="pwNew" type="password" autocomplete="new-password" placeholder="새 비밀번호" />
+        <label>새 비밀번호 확인</label>
+        <input id="pwNew2" type="password" autocomplete="new-password" placeholder="새 비밀번호 한 번 더" />
+        <button class="auth__main" id="pwSave">비밀번호 바꾸기</button>
+        <button class="auth__link" id="pwForgot">지금 비밀번호가 기억나지 않아요</button>
       </div>
 
       <p class="auth__msg" id="authMsg"></p>

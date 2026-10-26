@@ -401,6 +401,7 @@ function refreshMemberUI() {
     memberName.textContent = "";
     memberBtn.textContent = "로그인 · 회원가입";
   }
+  $id("memberPwBtn").hidden = !currentUser;
   let canWrite = false;
   if (!currentUser) {
     lockedText.textContent = "댓글은 회원만 쓸 수 있어요";
@@ -451,7 +452,8 @@ function switchTab(tab) {
   $id("loginForm").hidden = tab !== "login";
   $id("signupForm").hidden = tab !== "signup";
   $id("profileForm").hidden = tab !== "profile";
-  document.querySelector(".auth__tabs").hidden = tab === "profile";
+  $id("passwordForm").hidden = tab !== "password";
+  document.querySelector(".auth__tabs").hidden = tab === "profile" || tab === "password";
   if (tab === "profile") {
     $id("profNick").value = (myProfile && (myProfile.nickname || myProfile.name)) || (currentUser && currentUser.displayName) || "";
     $id("profReal").value = (myProfile && myProfile.realName) || "";
@@ -498,6 +500,40 @@ function checkNames(nick, real) {
   if (real.length < 2) return "실명을 정확히 입력해 주세요.";
   return "";
 }
+
+// ----- 비밀번호 변경 (로그인한 회원 본인) -----
+$id("memberPwBtn").addEventListener("click", () => {
+  if (!currentUser) return openAuth("login");
+  ["pwCur", "pwNew", "pwNew2"].forEach((x) => ($id(x).value = ""));
+  openAuth("password");
+});
+$id("pwSave").addEventListener("click", async () => {
+  if (!currentUser) return switchTab("login");
+  const cur = $id("pwCur").value, nw = $id("pwNew").value, nw2 = $id("pwNew2").value;
+  if (!cur) return authSay("지금 비밀번호를 입력해 주세요.", false);
+  if (nw.length < 6) return authSay("새 비밀번호는 6자 이상이어야 해요.", false);
+  if (nw !== nw2) return authSay("새 비밀번호가 서로 달라요.", false);
+  const btn = $id("pwSave"); btn.disabled = true;
+  try {
+    const { auth, au } = await fb();
+    const u = auth.currentUser;
+    await au.reauthenticateWithCredential(u, au.EmailAuthProvider.credential(u.email, cur));
+    await au.updatePassword(u, nw);
+    authSay("비밀번호를 바꿨어요! 다음 로그인부터 새 비밀번호를 쓰세요.", true);
+    setTimeout(closeAuth, 1200);
+  } catch (e) {
+    authSay(e.code === "auth/invalid-credential" || e.code === "auth/wrong-password"
+      ? "지금 비밀번호가 맞지 않아요." : authErrorText(e.code), false);
+  } finally { btn.disabled = false; }
+});
+$id("pwForgot").addEventListener("click", async () => {
+  if (!currentUser) return;
+  try {
+    const { auth, au } = await fb();
+    await au.sendPasswordResetEmail(auth, currentUser.email);
+    authSay("가입한 이메일로 비밀번호 재설정 메일을 보냈어요. 메일함(스팸함 포함)을 확인해 주세요.", true);
+  } catch (e) { authSay(authErrorText(e.code), false); }
+});
 
 memberBtn.addEventListener("click", async () => {
   if (currentUser) {
