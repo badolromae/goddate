@@ -1,0 +1,18 @@
+{
+  "id": "/goddate/attend/admin.html",
+  "name": "출석부 관리",
+  "short_name": "출석부",
+  "description": "모임 출석 QR과 출석 명단 관리",
+  "start_url": "./admin.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#E8D9CB",
+  "theme_color": "#B88A4A",
+  "lang": "ko",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

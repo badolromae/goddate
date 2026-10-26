@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="color-scheme" content="light only">
+<link rel="icon" href="icons/icon-192.png">
+<meta name="theme-color" content="#B88A4A">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>출석하기</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -55,7 +57,7 @@ label{display:block;font-weight:500;margin-bottom:8px;text-align:left}
         <p class="at" id="at"></p>
       </div>
     </div>
-    <div class="foot"><button class="ghost" id="other">이 폰으로 다른 사람 출석하기</button></div>
+    <p class="foot muted" style="font-size:13px;margin:0">출석은 한 폰에서 한 사람만 할 수 있습니다.</p>
   </div>
 </main>
 <div class="toast" id="toast" role="status"></div>
@@ -79,7 +81,16 @@ const db = getFirestore(initializeApp(firebaseConfig));
 const doneKey = 'done:'+mid;
 let meeting = null;
 
-function deviceId(){ let d=ls.get('dev'); if(!d){ d=rid(); ls.set('dev',d); } return d; }
+// 폰 고유번호: 저장공간과 쿠키 두 곳에 보관해서 한쪽을 지워도 유지
+function getCookie(k){ const m=document.cookie.match(new RegExp('(?:^|; )'+k+'=([^;]*)')); return m?decodeURIComponent(m[1]):null; }
+function setCookie(k,v){ document.cookie=k+'='+encodeURIComponent(v)+'; max-age=63072000; path=/; SameSite=Lax'; }
+function deviceId(){
+  let d=ls.get('dev') || getCookie('att_dev');
+  if(!d){ d=rid(); }
+  ls.set('dev',d); setCookie('att_dev',d);
+  return d;
+}
+deviceId();
 
 function render(){
   $('#loading').hidden=true; $('#page').hidden=false;
@@ -112,16 +123,13 @@ async function go(){
     render();
   }catch(e){
     if(e.code==='permission-denied'){
-      toast(meeting && meeting.open===false ? '출석이 마감되었습니다' : '이 폰으로는 이미 출석했습니다', true);
+      toast(meeting && meeting.open===false ? '출석이 마감되었습니다' : '이 폰으로는 이미 출석했습니다. 한 폰에서 한 사람만 출석할 수 있어요.', true);
     } else toast('출석하지 못했습니다. 인터넷 연결을 확인하고 다시 눌러 주세요.', true);
     $('#go').disabled=false;
   }
 }
 $('#go').addEventListener('click',go);
 $('#name').addEventListener('keydown',e=>{ if(e.key==='Enter') go(); });
-$('#other').addEventListener('click',()=>{
-  ls.del(doneKey); ls.set('dev',rid()); $('#name').value=''; render(); $('#name').focus();
-});
 </script>
 </body>
 </html>
