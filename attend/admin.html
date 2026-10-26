@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="color-scheme" content="light only">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>출석부 관리자</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Noto+Serif+KR:wght@500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+.wrap{max-width:760px;margin:0 auto;padding:20px 16px 48px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}
+.login{max-width:400px;margin:12vh auto 0;padding:36px 26px;display:grid;gap:12px;text-align:center}
+.panel{padding:20px}
+
+/* 모임 목록 */
+.new{display:flex;gap:8px;margin-bottom:18px}
+.new .field{flex:1;min-width:0}
+.new .primary{width:auto;white-space:nowrap}
+.mlist{list-style:none;margin:0;padding:0}
+.mlist button{width:100%;text-align:left;display:flex;justify-content:space-between;gap:12px;align-items:center;background:rgba(255,255,255,.6);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:8px}
+.mlist button:hover{border-color:var(--gold)}
+.mlist .t{font-family:var(--serif-kr);font-weight:700;font-size:17px}
+.mlist .d{font-size:14px;color:var(--muted);white-space:nowrap}
+.tag{font-size:12px;border-radius:999px;padding:2px 8px;background:var(--ok-soft);color:var(--ok);margin-left:8px;font-weight:500}
+.tag.closed{background:rgba(0,0,0,.05);color:var(--muted)}
+.empty{padding:28px 8px;text-align:center;color:var(--muted)}
+
+/* 모임 출석 화면 */
+.stage{padding:28px 20px 22px;text-align:center;margin-bottom:16px}
+.stage .arch{max-width:420px;margin:0 auto;padding:46px 22px 24px}
+.titlein{width:100%;border:0;border-bottom:1px dashed var(--gold-soft);background:none;text-align:center;font-family:var(--serif-kr);font-size:clamp(22px,4vw,28px);font-weight:700;padding:4px 0 8px;margin:6px 0 2px}
+.titlein::placeholder{color:rgba(122,97,82,.6)}
+.titlein:focus{outline:none;border-bottom-color:var(--gold)}
+.date{color:var(--muted);font-size:14px;margin:6px 0 18px}
+.qrbox{display:inline-block;background:#fff;padding:12px;border-radius:12px;line-height:0;box-shadow:0 4px 16px rgba(80,40,20,.12)}
+.qrbox img,.qrbox canvas{width:210px;height:210px}
+.acts{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:20px}
+.acts button{border:1px solid var(--line);background:rgba(255,255,255,.65);border-radius:999px;padding:9px 14px;font-size:14px;font-weight:500}
+.tally{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--gold);padding-bottom:8px}
+.tally b{font-family:var(--serif);font-size:38px;font-weight:600;line-height:1}
+.tally b small{font-family:var(--sans);font-size:15px;font-weight:500;color:var(--muted);margin-left:6px}
+ol.list{list-style:none;margin:0;padding:0}
+.row{display:grid;grid-template-columns:32px 1fr auto auto;gap:12px;align-items:center;padding:12px 4px;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row .no{font-family:var(--serif);color:var(--gold);font-size:18px;text-align:right}
+.row .name{font-family:var(--serif-kr);font-size:18px;font-weight:700}
+.row .time{font-variant-numeric:tabular-nums;color:var(--muted)}
+.row .ghost{padding:4px 10px;font-size:13px}
+.row.new{animation:flash 1.8s ease-out}
+@keyframes flash{from{background:rgba(184,138,74,.22)}to{background:transparent}}
+@media (prefers-reduced-motion:reduce){.row.new{animation:none}}
+
+/* QR 크게 띄우기 */
+.big{position:fixed;inset:0;z-index:30;background:#E8D9CB url(bg.jpg) center/cover no-repeat;display:flex;align-items:center;justify-content:center;padding:24px}
+.big .arch{background:rgba(252,247,241,.82);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);padding:clamp(48px,9vh,96px) clamp(32px,5vw,72px) clamp(20px,3vh,32px);text-align:center;display:flex;flex-direction:column;align-items:center;gap:clamp(10px,2vh,18px);max-height:100%}
+.big h2{margin:0;font-family:var(--serif-kr);font-size:clamp(24px,4vw,44px);font-weight:700;word-break:keep-all;line-height:1.25;max-width:13em}
+.big p{margin:0;font-size:clamp(15px,2.2vw,20px);color:var(--muted)}
+.big .qrbox{padding:14px}
+.big .qrbox img,.big .qrbox canvas{width:min(56vw,46vh);height:min(56vw,46vh)}
+.big .count{font-family:var(--serif-kr);font-size:clamp(18px,2.6vw,24px);font-weight:700;color:var(--rust)}
+.big .x{position:absolute;top:calc(16px + env(safe-area-inset-top,0px));right:16px}
+</style>
+</head>
+<body>
+<p class="muted" id="loading" style="text-align:center;padding:60px 0;color:var(--ink)">불러오는 중…</p>
+
+<!-- 로그인 -->
+<form class="card login" id="login" hidden onsubmit="return false">
+  <p class="eyebrow">Attendance</p>
+  <h1>출석부 관리자</h1>
+  <p class="muted" style="margin:0">관리자 계정으로 로그인하세요.</p>
+  <input class="field" id="email" type="email" placeholder="이메일" autocomplete="username">
+  <input class="field" id="pw" type="password" placeholder="비밀번호" autocomplete="current-password">
+  <div id="loginMsg"></div>
+  <button class="primary" id="loginBtn">로그인</button>
+</form>
+
+<!-- 모임 목록 -->
+<div class="wrap" id="home" hidden>
+  <div class="top"><h1>출석부</h1><button class="ghost" id="logout">로그아웃</button></div>
+  <section class="card panel">
+  <div class="new">
+    <input class="field" id="newTitle" placeholder="모임 제목 (예: 10월 정기모임)" maxlength="60">
+    <button class="primary" id="create">새 출석 만들기</button>
+  </div>
+  <ul class="mlist" id="mlist"></ul>
+  </section>
+</div>
+
+<!-- 모임 출석 화면 -->
+<div class="wrap" id="meet" hidden>
+  <div class="top"><button class="ghost" id="back">← 목록</button><button class="ghost" id="toggle"></button></div>
+  <section class="card stage">
+    <div class="arch">
+    <p class="eyebrow">Welcome</p>
+    <input class="titlein" id="title" placeholder="모임 제목을 입력하세요" maxlength="60" aria-label="모임 제목">
+    <p class="date" id="date"></p>
+    <div class="qrbox" id="qr"></div>
+    </div>
+    <div class="acts">
+      <button id="full">QR 크게 띄우기</button>
+      <button id="copy">출석 주소 복사</button>
+      <button id="csv">명단 엑셀(CSV) 저장</button>
+      <button id="remove" style="color:var(--warn)">모임 삭제</button>
+    </div>
+  </section>
+  <section class="card panel">
+  <div class="tally"><b id="count">0<small>명 출석</small></b><span class="muted" id="state"></span></div>
+  <ol class="list" id="list" aria-live="polite"></ol>
+  </section>
+</div>
+
+<div class="big" id="big" hidden>
+  <button class="ghost x" id="closeBig">닫기</button>
+  <div class="arch">
+    <p class="eyebrow">Welcome</p>
+    <h2 id="bigTitle"></h2>
+    <div class="qrbox" id="bigQr"></div>
+    <p>폰 카메라로 QR을 찍고 → 성함 입력 → 출석</p>
+    <div class="count" id="bigCount"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script src="../config.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, getDocs, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+const firebaseConfig = (window.APP_CONFIG || {}).firebase;
+if (!firebaseConfig) { document.body.innerHTML = '<p style="padding:40px;text-align:center">설정 파일(config.js)을 찾지 못했습니다. attend 폴더가 goddate 저장소 안에 있는지 확인해 주세요.</p>'; throw new Error('no config'); }
+
+const app=initializeApp(firebaseConfig), auth=getAuth(app), db=getFirestore(app);
+const $=s=>document.querySelector(s);
+const esc=t=>{const d=document.createElement('div');d.textContent=t??'';return d.innerHTML};
+let tt; const toast=(m,err)=>{const t=$('#toast');t.textContent=m;t.classList.toggle('err',!!err);t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),2400)};
+const todayStr=()=>new Date().toLocaleDateString('sv-SE');
+const fmtDate=d=>d?new Date(d+'T00:00').toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'short'}):'';
+const fmtTime=ts=>ts?ts.toDate().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}):'';
+const checkinUrl=id=>new URL('index.html?m='+id, location.href).href;
+function show(id){ ['loading','login','home','meet'].forEach(x=>$('#'+x).hidden=x!==id); }
+
+/* ---------- 로그인 ---------- */
+$('#loginBtn').addEventListener('click',async()=>{
+  $('#loginMsg').innerHTML=''; $('#loginBtn').disabled=true;
+  try{ await signInWithEmailAndPassword(auth,$('#email').value.trim(),$('#pw').value); }
+  catch(e){ $('#loginMsg').innerHTML='<p class="msg warn">이메일 또는 비밀번호가 맞지 않습니다.</p>'; }
+  $('#loginBtn').disabled=false;
+});
+$('#logout').addEventListener('click',()=>signOut(auth));
+
+let unList=null, notAdmin=false;
+onAuthStateChanged(auth,u=>{
+  notAdmin=false;
+  if(!u){ if(unList){unList();unList=null;} closeMeeting(); show('login'); return; }
+  if(!unList){
+    unList=onSnapshot(query(collection(db,'meetings'),orderBy('createdAt','desc')),s=>{
+      const ms=s.docs.map(d=>({id:d.id,...d.data()}));
+      $('#mlist').innerHTML = ms.length ? ms.map(m=>
+        '<li><button data-id="'+m.id+'"><span><span class="t">'+esc(m.title||'제목 없음')+'</span><span class="tag'+(m.open===false?' closed':'')+'">'+(m.open===false?'마감':'출석 중')+'</span></span><span class="d">'+fmtDate(m.date)+'</span></button></li>'
+      ).join('') : '<li class="empty">아직 만든 출석이 없습니다. 위에 모임 제목을 적고 새 출석을 만드세요.</li>';
+    },e=>{
+      if(e.code==='permission-denied'){
+        // 일반 회원 계정: 공지 앱 로그인은 그대로 두고, 여기서만 관리자 로그인을 요청
+        notAdmin=true; if(unList){unList();unList=null;} closeMeeting(); show('login');
+        $('#loginMsg').innerHTML='<p class="msg warn">관리자 계정이 아닙니다. 공지 관리자 계정으로 로그인해 주세요.</p>';
+      } else toast('목록을 불러오지 못했습니다',true);
+    });
+  }
+  route();
+});
+
+/* ---------- 목록 ---------- */
+$('#create').addEventListener('click',async()=>{
+  const title=$('#newTitle').value.trim();
+  $('#create').disabled=true;
+  try{
+    const r=await addDoc(collection(db,'meetings'),{title,date:todayStr(),open:true,createdAt:serverTimestamp()});
+    $('#newTitle').value=''; location.hash='m='+r.id;
+  }catch(e){ toast('만들지 못했습니다',true); }
+  $('#create').disabled=false;
+});
+$('#newTitle').addEventListener('keydown',e=>{ if(e.key==='Enter') $('#create').click(); });
+$('#mlist').addEventListener('click',e=>{ const b=e.target.closest('[data-id]'); if(b) location.hash='m='+b.dataset.id; });
+
+/* ---------- 모임 화면 ---------- */
+let cur=null, unMeet=null, unAtt=null, rows=[], seen=new Set(), first=true, titleTimer=null;
+function makeQR(el,size,url){ el.innerHTML=''; if(!window.QRCode){el.textContent='QR 오류';return;} new QRCode(el,{text:url,width:size,height:size,colorDark:'#16213A',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M}); }
+
+function openMeeting(id){
+  if(cur && cur.id===id) return;
+  closeMeeting();
+  cur={id}; seen=new Set(); first=true; rows=[];
+  makeQR($('#qr'),220,checkinUrl(id));
+  unMeet=onSnapshot(doc(db,'meetings',id),s=>{
+    if(!s.exists()){ toast('삭제된 모임입니다',true); location.hash=''; return; }
+    cur={id,...s.data()};
+    if(document.activeElement!==$('#title')) $('#title').value=cur.title||'';
+    $('#bigTitle').textContent=cur.title||'출석';
+    $('#date').textContent=fmtDate(cur.date);
+    $('#toggle').textContent=cur.open===false?'출석 다시 열기':'출석 마감하기';
+    $('#state').textContent=cur.open===false?'마감됨':'출석 받는 중';
+  });
+  unAtt=onSnapshot(query(collection(db,'meetings',id,'attendees'),orderBy('at','asc')),s=>{
+    rows=s.docs.map(d=>({id:d.id,...d.data({serverTimestamps:'estimate'})}));
+    renderRows();
+  },()=>toast('명단을 불러오지 못했습니다',true));
+  show('meet');
+}
+function closeMeeting(){ if(unMeet)unMeet(); if(unAtt)unAtt(); unMeet=unAtt=null; cur=null; $('#big').hidden=true; }
+function renderRows(){
+  const n=rows.length;
+  $('#count').innerHTML=n+'<small>명 출석</small>';
+  $('#bigCount').textContent='지금까지 '+n+'명 출석';
+  $('#list').innerHTML = n ? rows.map((r,i)=>{
+    const isNew=!first&&!seen.has(r.id);
+    return '<li class="row'+(isNew?' new':'')+'"><span class="no">'+(i+1)+'</span><span class="name">'+esc(r.name)+'</span><span class="time">'+fmtTime(r.at)+'</span><button class="ghost danger" data-del="'+r.id+'">취소</button></li>';
+  }).join('') : '<li class="empty">아직 출석한 사람이 없습니다.</li>';
+  rows.forEach(r=>seen.add(r.id)); first=false;
+}
+$('#title').addEventListener('input',()=>{
+  clearTimeout(titleTimer);
+  const v=$('#title').value.trim(); $('#bigTitle').textContent=v||'출석';
+  titleTimer=setTimeout(()=>updateDoc(doc(db,'meetings',cur.id),{title:v}).catch(()=>toast('제목을 저장하지 못했습니다',true)),600);
+});
+$('#toggle').addEventListener('click',()=>updateDoc(doc(db,'meetings',cur.id),{open:cur.open===false}).catch(()=>toast('바꾸지 못했습니다',true)));
+$('#list').addEventListener('click',async e=>{
+  const b=e.target.closest('[data-del]'); if(!b) return;
+  const r=rows.find(x=>x.id===b.dataset.del);
+  if(confirm(r.name+' 님의 출석을 취소할까요?')) deleteDoc(doc(db,'meetings',cur.id,'attendees',r.id)).catch(()=>toast('취소하지 못했습니다',true));
+});
+$('#full').addEventListener('click',()=>{ $('#big').hidden=false; makeQR($('#bigQr'),600,checkinUrl(cur.id)); });
+$('#closeBig').addEventListener('click',()=>$('#big').hidden=true);
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') $('#big').hidden=true; });
+$('#copy').addEventListener('click',async()=>{ const u=checkinUrl(cur.id); try{ await navigator.clipboard.writeText(u); toast('출석 주소를 복사했습니다'); }catch(e){ prompt('출석 주소',u); } });
+$('#csv').addEventListener('click',()=>{
+  const lines=[['번호','이름','출석시간']].concat(rows.map((r,i)=>[i+1,r.name,r.at?r.at.toDate().toLocaleString('ko-KR'):'']));
+  const csv='\uFEFF'+lines.map(l=>l.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download=(cur.title||'출석부')+'_'+(cur.date||todayStr())+'.csv'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+});
+$('#remove').addEventListener('click',async()=>{
+  if(!confirm('이 모임과 출석 명단을 모두 삭제할까요? 되돌릴 수 없습니다.')) return;
+  const id=cur.id;
+  try{
+    const s=await getDocs(collection(db,'meetings',id,'attendees'));
+    await Promise.all(s.docs.map(d=>deleteDoc(d.ref)));
+    location.hash=''; await deleteDoc(doc(db,'meetings',id)); toast('삭제했습니다');
+  }catch(e){ toast('삭제하지 못했습니다',true); }
+});
+$('#back').addEventListener('click',()=>location.hash='');
+
+/* ---------- 화면 전환 ---------- */
+function route(){
+  if(!auth.currentUser || notAdmin) return;
+  const m=location.hash.match(/^#m=([A-Za-z0-9]+)$/);
+  if(m) openMeeting(m[1]); else { closeMeeting(); show('home'); }
+}
+window.addEventListener('hashchange',route);
+</script>
+</body>
+</html>

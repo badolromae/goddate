@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="color-scheme" content="light only">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>출석하기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Noto+Serif+KR:wght@500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+.ci{max-width:440px;margin:0 auto;padding:28px 18px 32px;min-height:100vh;display:flex;flex-direction:column;justify-content:center}
+.sheet{padding:44px 24px 28px;text-align:center}
+.sheet .arch{padding:56px 22px 26px;margin-bottom:22px}
+.title{font-family:var(--serif-kr);font-size:clamp(22px,6.4vw,28px);font-weight:700;margin:8px 0 0;word-break:keep-all;line-height:1.35}
+.when{color:var(--muted);margin:8px 0 0;font-size:15px}
+.rule{width:44px;height:1px;background:var(--gold);margin:18px auto}
+label{display:block;font-weight:500;margin-bottom:8px;text-align:left}
+.field{font-size:20px;padding:16px;text-align:center}
+.hint{font-size:13px;color:var(--muted);margin:8px 0 22px;word-break:keep-all}
+.done{padding:4px 0 8px}
+.stamp{width:118px;height:118px;border-radius:50%;border:2px solid var(--rust);outline:1px solid var(--rust);outline-offset:4px;color:var(--rust);display:grid;place-items:center;margin:6px auto 22px;font-family:var(--serif-kr);font-size:26px;font-weight:700;letter-spacing:.15em;transform:rotate(-8deg)}
+.who{font-family:var(--serif-kr);font-size:28px;font-weight:700;margin:0}
+.at{font-size:16px;color:var(--muted);margin:4px 0 0}
+.foot{padding-top:18px;text-align:center}
+.loadbox{text-align:center;padding:40px 0}
+</style>
+</head>
+<body>
+<main class="ci">
+  <p class="muted loadbox" id="loading">불러오는 중…</p>
+  <div class="card sheet" id="bad" hidden>
+    <h1>출석 링크가 올바르지 않습니다</h1>
+    <p class="muted">모임에서 안내한 QR을 다시 찍어 주세요.</p>
+  </div>
+
+  <div class="card sheet" id="page" hidden>
+    <div class="arch">
+      <p class="eyebrow">Welcome</p>
+      <p class="title" id="title"></p>
+      <p class="when" id="when"></p>
+      <div class="rule"></div>
+      <div id="msg"></div>
+
+      <div id="form">
+        <label for="name">성함</label>
+        <input class="field" id="name" autocomplete="name" placeholder="실명을 입력해 주세요" maxlength="20">
+        <p class="hint">한 번 입력하면 이 폰에서는 다음부터 자동으로 채워집니다.</p>
+        <button class="go" id="go">출석</button>
+      </div>
+
+      <div class="done" id="done" hidden>
+        <div class="stamp">출석</div>
+        <p class="who" id="who"></p>
+        <p class="at" id="at"></p>
+      </div>
+    </div>
+    <div class="foot"><button class="ghost" id="other">이 폰으로 다른 사람 출석하기</button></div>
+  </div>
+</main>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="../config.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, doc, setDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+const firebaseConfig = (window.APP_CONFIG || {}).firebase;
+if (!firebaseConfig) { document.body.innerHTML = '<p style="padding:40px;text-align:center">설정 파일(config.js)을 찾지 못했습니다. attend 폴더가 goddate 저장소 안에 있는지 확인해 주세요.</p>'; throw new Error('no config'); }
+
+const $ = s => document.querySelector(s);
+const ls = { get(k){try{return localStorage.getItem(k)}catch(e){return null}}, set(k,v){try{localStorage.setItem(k,v)}catch(e){}}, del(k){try{localStorage.removeItem(k)}catch(e){}} };
+let tt; const toast=(m,err)=>{const t=$('#toast');t.textContent=m;t.classList.toggle('err',!!err);t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),2600)};
+const rid = () => Math.random().toString(36).slice(2,10)+Date.now().toString(36);
+
+const mid = new URLSearchParams(location.search).get('m');
+if(!mid || !/^[A-Za-z0-9]{6,40}$/.test(mid)){ $('#loading').hidden=true; $('#bad').hidden=false; throw new Error('no meeting'); }
+
+const db = getFirestore(initializeApp(firebaseConfig));
+const doneKey = 'done:'+mid;
+let meeting = null;
+
+function deviceId(){ let d=ls.get('dev'); if(!d){ d=rid(); ls.set('dev',d); } return d; }
+
+function render(){
+  $('#loading').hidden=true; $('#page').hidden=false;
+  $('#title').textContent = meeting.title || '출석';
+  $('#when').textContent = meeting.date ? new Date(meeting.date+'T00:00').toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'short'}) : '';
+  const done = JSON.parse(ls.get(doneKey)||'null');
+  $('#form').hidden=!!done; $('#done').hidden=!done;
+  $('#msg').innerHTML='';
+  if(done){ $('#who').textContent=done.name+' 님'; $('#at').textContent=done.time+' 출석 완료'; }
+  else if(meeting.open===false){ $('#msg').innerHTML='<p class="msg warn">출석이 마감되었습니다.</p>'; $('#go').disabled=true; }
+  else $('#go').disabled=false;
+}
+
+onSnapshot(doc(db,'meetings',mid), s=>{
+  if(!s.exists()){ $('#loading').hidden=true; $('#page').hidden=true; $('#bad').hidden=false; return; }
+  meeting=s.data(); render();
+}, ()=>{ $('#loading').textContent='연결하지 못했습니다. 잠시 후 새로고침해 주세요.'; });
+
+const saved = ls.get('myname'); if(saved) $('#name').value=saved;
+
+async function go(){
+  const name=$('#name').value.trim();
+  if(!name){ toast('실명을 입력해 주세요',true); $('#name').focus(); return; }
+  $('#go').disabled=true;
+  try{
+    await setDoc(doc(db,'meetings',mid,'attendees',deviceId()), { name, at: serverTimestamp() });
+    ls.set('myname',name);
+    ls.set(doneKey, JSON.stringify({ name, time: new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}) }));
+    if(navigator.vibrate) navigator.vibrate(80);
+    render();
+  }catch(e){
+    if(e.code==='permission-denied'){
+      toast(meeting && meeting.open===false ? '출석이 마감되었습니다' : '이 폰으로는 이미 출석했습니다', true);
+    } else toast('출석하지 못했습니다. 인터넷 연결을 확인하고 다시 눌러 주세요.', true);
+    $('#go').disabled=false;
+  }
+}
+$('#go').addEventListener('click',go);
+$('#name').addEventListener('keydown',e=>{ if(e.key==='Enter') go(); });
+$('#other').addEventListener('click',()=>{
+  ls.del(doneKey); ls.set('dev',rid()); $('#name').value=''; render(); $('#name').focus();
+});
+</script>
+</body>
+</html>
