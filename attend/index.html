@@ -26,6 +26,20 @@ label{display:block;font-weight:500;margin-bottom:8px;text-align:left}
 .at{font-size:16px;color:var(--muted);margin:4px 0 0}
 .foot{padding-top:18px;text-align:center}
 .loadbox{text-align:center;padding:40px 0}
+.myrate{margin-top:6px}
+.rlabel{font-family:var(--serif-kr);font-weight:700;margin:0 0 10px}
+.ring{position:relative;width:132px;height:132px;margin:0 auto}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:9}
+.ring .trk{stroke:var(--line)}
+.ring .val{stroke:var(--rust);stroke-linecap:round;stroke-dasharray:314.16;stroke-dashoffset:314.16;transition:stroke-dashoffset 1s ease}
+@media (prefers-reduced-motion:reduce){.ring .val{transition:none}}
+.ring b{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--serif);font-size:34px;font-weight:600}
+.rsub{color:var(--muted);margin:10px 0 8px;font-size:15px}
+.dots{display:flex;flex-wrap:wrap;justify-content:center;gap:5px;max-width:280px;margin:0 auto}
+.dots i{width:10px;height:10px;border-radius:50%;border:1.5px solid var(--gold)}
+.dots i.on{background:var(--rust);border-color:var(--rust)}
+.dots i.now{outline:2px solid var(--gold);outline-offset:2px}
 @media (prefers-color-scheme:dark){.stamp{background:rgba(0,0,0,.15)}}
 </style>
 </head>
@@ -56,6 +70,13 @@ label{display:block;font-weight:500;margin-bottom:8px;text-align:left}
         <div class="stamp">출석</div>
         <p class="who" id="who"></p>
         <p class="at" id="at"></p>
+        <div class="myrate" id="myrate" hidden>
+          <div class="rule"></div>
+          <p class="rlabel">나의 출석률</p>
+          <div class="ring"><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="50" class="trk"/><circle cx="60" cy="60" r="50" class="val" id="rArc"/></svg><b id="rPct">0%</b></div>
+          <p class="rsub" id="rSub"></p>
+          <div class="dots" id="rDots" aria-hidden="true"></div>
+        </div>
       </div>
     </div>
     <p class="foot muted" style="font-size:13px;margin:0">출석은 한 폰에서 한 사람만 할 수 있습니다.</p>
@@ -66,7 +87,7 @@ label{display:block;font-weight:500;margin-bottom:8px;text-align:left}
 <script src="../config.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getFirestore, doc, setDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, doc, setDoc, onSnapshot, serverTimestamp, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 const firebaseConfig = (window.APP_CONFIG || {}).firebase;
 if (!firebaseConfig) { document.body.innerHTML = '<p style="padding:40px;text-align:center">설정 파일(config.js)을 찾지 못했습니다. attend 폴더가 goddate 저장소 안에 있는지 확인해 주세요.</p>'; throw new Error('no config'); }
 
@@ -93,6 +114,42 @@ function deviceId(){
 }
 deviceId();
 
+// 이 폰의 출석 기록 (모임 번호 목록): 저장공간 + 쿠키 두 곳에 보관
+function getHist(){
+  const h=new Set();
+  try{ JSON.parse(ls.get('att_hist')||'[]').forEach(x=>h.add(x)); }catch(e){}
+  (getCookie('att_hist')||'').split('.').filter(Boolean).forEach(x=>h.add(x));
+  try{ for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k&&k.startsWith('done:')) h.add(k.slice(5)); } }catch(e){}
+  return h;
+}
+function addHist(id){
+  const h=getHist(); h.add(id); const arr=[...h];
+  ls.set('att_hist',JSON.stringify(arr));
+  setCookie('att_hist',arr.slice(-150).join('.'));
+}
+addHist.save=()=>{ const arr=[...getHist()]; ls.set('att_hist',JSON.stringify(arr)); setCookie('att_hist',arr.slice(-150).join('.')); };
+addHist.save();
+
+// 나의 출석률: 통계에 들어가는 모임(오늘까지) 중 이 폰으로 출석한 횟수
+let rateShown=false;
+async function showRate(){
+  if(rateShown) return; rateShown=true;
+  try{
+    const today=new Date().toLocaleDateString('sv-SE');
+    const ms=(await getDocs(collection(db,'meetings'))).docs.map(d=>({id:d.id,...d.data()}))
+      .filter(m=>m.id===mid || (!m.noStats && (m.date||'')<=today))
+      .sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    const h=getHist(); h.add(mid);
+    const hit=ms.filter(m=>h.has(m.id)).length, total=ms.length;
+    const pct=total?Math.round(hit/total*100):0;
+    $('#rPct').textContent=pct+'%';
+    $('#rSub').textContent='모임 '+total+'회 중 '+hit+'회 출석했어요';
+    $('#rDots').innerHTML=ms.map(m=>'<i class="'+(h.has(m.id)?'on':'')+(m.id===mid?' now':'')+'" title="'+(m.date||'')+'"></i>').join('');
+    $('#myrate').hidden=false;
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{ $('#rArc').style.strokeDashoffset=String(314.16*(1-pct/100)); }));
+  }catch(e){ rateShown=false; }
+}
+
 function render(){
   $('#loading').hidden=true; $('#page').hidden=false;
   $('#title').textContent = meeting.title || '출석';
@@ -100,7 +157,7 @@ function render(){
   const done = JSON.parse(ls.get(doneKey)||'null');
   $('#form').hidden=!!done; $('#done').hidden=!done;
   $('#msg').innerHTML='';
-  if(done){ $('#who').textContent=done.name+' 님'; $('#at').textContent=done.time+' 출석 완료'; }
+  if(done){ $('#who').textContent=done.name+' 님'; $('#at').textContent=done.time+' 출석 완료'; addHist(mid); showRate(); }
   else if(meeting.open===false){ $('#msg').innerHTML='<p class="msg warn">출석이 마감되었습니다.</p>'; $('#go').disabled=true; }
   else $('#go').disabled=false;
 }
@@ -124,6 +181,7 @@ async function go(){
     render();
   }catch(e){
     if(e.code==='permission-denied'){
+      if(!(meeting && meeting.open===false)) addHist(mid);
       toast(meeting && meeting.open===false ? '출석이 마감되었습니다' : '이 폰으로는 이미 출석했습니다. 한 폰에서 한 사람만 출석할 수 있어요.', true);
     } else toast('출석하지 못했습니다. 인터넷 연결을 확인하고 다시 눌러 주세요.', true);
     $('#go').disabled=false;
