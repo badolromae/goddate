@@ -144,7 +144,7 @@ function catOf(m,ms){
 function showCat(done){
   const el=$('#catLine'); if(!done||!done.ms||!meeting){ el.hidden=true; return; }
   const c=catOf(meeting,done.ms); if(c==null){ el.hidden=true; return; }
-  const names=['정시출근','모임시작전출근','모임시작후'], p=meeting.pts||{}, pts=[p.p1??5,p.p2??3,p.p3??1];
+  const names=['정시출석','모임시작전출석','모임시작후출석'], p=meeting.pts||{}, pts=[p.p1??5,p.p2??3,p.p3??1];
   const l=c===3?'출석 (인정 시간 이후)':(((meeting.labels||{})['l'+(c+1)]||'').trim()||names[c])+' · +'+pts[c]+'점';
   el.textContent=l; el.className='cat c'+c; el.hidden=false;
 }

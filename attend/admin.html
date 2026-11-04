@@ -51,7 +51,7 @@
 .tscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
 table.st{border-collapse:collapse;width:100%;font-size:15px}
 table.st th,table.st td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
-table.st th{font-size:13px;color:var(--muted);font-weight:500;white-space:normal;line-height:1.3}
+table.st th{font-size:13px;color:var(--muted);font-weight:500;white-space:normal;word-break:keep-all;line-height:1.3}
 table.st td{vertical-align:middle;line-height:1.3}
 table.st td.nm{text-align:left;font-family:var(--serif-kr);font-weight:700}
 table.st td.nm button{background:none;border:0;padding:0;font:inherit;color:inherit;text-decoration:underline dotted var(--gold);text-underline-offset:4px}
@@ -89,10 +89,23 @@ table.mx tfoot td{font-weight:700;border-top:1px solid var(--gold)}
 .badge.b1{background:var(--gold);border-color:var(--gold);color:#fff}
 .badge.b2{color:var(--rust)}
 .row .name{display:flex;align-items:center;flex-wrap:wrap}
+.row .time,.row .ghost{white-space:nowrap}
+.row{column-gap:8px}
 table.st td.rk{font-family:var(--serif);font-size:20px;font-weight:600}
-table.st td.rk.top{color:var(--rust)}
+table.st td.rk.rk1{color:var(--rust)}
 table.st td.pt{font-weight:700;font-size:17px}
 table.mx td.o{color:var(--rust);font-weight:700}
+
+/* 직접 출석 넣기 · 구분 바꾸기 */
+.manual{display:grid;grid-template-columns:1fr auto auto;gap:8px;margin:14px 0 6px}
+.manual .field{font-size:15px;padding:11px 12px}
+.manual .primary{width:auto;padding:0 18px;font-size:15px}
+@media (max-width:560px){.manual{grid-template-columns:1fr 1fr}.manual #mName{grid-column:1/-1}}
+.catsel{appearance:none;-webkit-appearance:none;margin-left:6px;font-size:12px;font-weight:500;border-radius:999px;padding:2px 22px 2px 9px;border:1px solid var(--gold-soft);color:var(--muted);background:var(--item,rgba(255,255,255,.6)) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23B88A4A'/%3E%3C/svg%3E") no-repeat right 8px center;max-width:62vw}
+.catsel.b0{background-color:var(--rust);border-color:var(--rust);color:#fff}
+.catsel.b1{background-color:var(--gold);border-color:var(--gold);color:#fff}
+.catsel.b2{color:var(--rust);border-color:var(--rust)}
+.catsel option{color:#3A2419;background:#fff}
 
 /* A4 QR 인쇄 */
 #printQr{display:none}
@@ -360,14 +373,22 @@ ol.list{list-style:none;margin:0;padding:0}
   </section>
   <section class="card panel" style="margin-bottom:16px">
     <div class="shead"><h2 class="sec-title">시간 기준 · 점수</h2><span class="muted" id="timeState" style="font-size:13px"></span></div>
-    <div class="trow"><span class="cat">정시출근<small>이 시각까지</small></span><input class="field" id="l1" maxlength="12" placeholder="표시 이름 (예: 정시출근)"><label><input type="time" id="t1"> 까지</label><label><input type="number" id="p1" min="0" max="99">점</label></div>
-    <div class="trow"><span class="cat">모임시작전출근<small>모임 시작 시각까지</small></span><input class="field" id="l2" maxlength="12" placeholder="표시 이름 (예: 모임시작전)"><label><input type="time" id="t2"> 까지</label><label><input type="number" id="p2" min="0" max="99">점</label></div>
-    <div class="trow"><span class="cat">모임시작후<small>이 시각까지 인정</small></span><input class="field" id="l3" maxlength="12" placeholder="표시 이름 (예: 모임시작후)"><label><input type="time" id="t3"> 까지</label><label><input type="number" id="p3" min="0" max="99">점</label></div>
-    <p class="note" style="margin:10px 0 12px">표시 이름은 이 모임의 출석 화면과 명단에만 보이고, 통계에는 정시출근·모임시작전출근·모임시작후로 집계됩니다. 세 번째 시각을 비워 두면 모임 시작 후 언제 와도 그 점수를 받고, 적어 두면 그 이후 출석은 0점(출석만 인정)입니다. 시간을 나중에 바꿔도 점수는 자동으로 다시 계산됩니다.</p>
+    <div class="trow"><span class="cat">정시출석<small>이 시각까지</small></span><input class="field" id="l1" maxlength="12" placeholder="표시 이름 (예: 정시출석)"><label><input type="time" id="t1"> 까지</label><label><input type="number" id="p1" min="0" max="99">점</label></div>
+    <div class="trow"><span class="cat">모임시작전출석<small>모임 시작 시각까지</small></span><input class="field" id="l2" maxlength="12" placeholder="표시 이름 (예: 시작전 출석)"><label><input type="time" id="t2"> 까지</label><label><input type="number" id="p2" min="0" max="99">점</label></div>
+    <div class="trow"><span class="cat">모임시작후출석<small>이 시각까지 인정</small></span><input class="field" id="l3" maxlength="12" placeholder="표시 이름 (예: 늦은 출석)"><label><input type="time" id="t3"> 까지</label><label><input type="number" id="p3" min="0" max="99">점</label></div>
+    <p class="note" style="margin:10px 0 12px">표시 이름은 이 모임의 출석 화면과 명단에만 보이고, 통계에는 정시출석·모임시작전출석·모임시작후출석로 집계됩니다. 세 번째 시각을 비워 두면 모임 시작 후 언제 와도 그 점수를 받고, 적어 두면 그 이후 출석은 0점(출석만 인정)입니다. 시간을 나중에 바꿔도 점수는 자동으로 다시 계산됩니다.</p>
     <button class="primary" id="saveTimes">시간 기준 저장</button>
   </section>
   <section class="card panel">
   <div class="tally"><b id="count">0<small>명 출석</small></b><span class="muted" id="state"></span></div>
+  <div class="manual">
+    <input class="field" id="mName" list="nameList" maxlength="20" placeholder="이름 (자원봉사자 등 직접 넣기)" autocomplete="off">
+    <select class="field" id="mCat" aria-label="출석 구분">
+      <option value="0">정시출석</option><option value="1">모임시작전출석</option><option value="2">모임시작후출석</option><option value="3">출석만 (0점)</option>
+    </select>
+    <button class="primary" id="mAdd">출석 넣기</button>
+  </div>
+  <datalist id="nameList"></datalist>
   <ol class="list" id="list" aria-live="polite"></ol>
   </section>
 </div>
@@ -402,11 +423,12 @@ const todayStr=()=>new Date().toLocaleDateString('sv-SE');
 const fmtDate=d=>d?new Date(d+'T00:00').toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'short'}):'';
 const fmtTime=ts=>ts?ts.toDate().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}):'';
 /* ---------- 시간 기준 분류 ---------- */
-// 0=정시출근 1=모임시작전출근 2=모임시작후 3=인정시간 이후(0점) / null=시간 기준 없음
-const CATS=['정시출근','모임시작전출근','모임시작후'];
+// 0=정시출석 1=모임시작전출석 2=모임시작후출석 3=인정시간 이후(0점) / null=시간 기준 없음
+const CATS=['정시출석','모임시작전출석','모임시작후출석'];
 const DEF_PTS=[5,3,1];
 const toMin=v=>{ if(!v) return null; const [h,m]=String(v).split(':').map(Number); return isNaN(h)?null:h*60+(m||0); };
-function catOf(m,at){
+function catOf(m,at,ov){
+  if(ov===0||ov===1||ov===2||ov===3) return ov; // 관리자가 직접 정한 구분 우선
   const t=m.times||{}; const t1=toMin(t.t1),t2=toMin(t.t2),t3=toMin(t.t3);
   if(t1==null&&t2==null&&t3==null) return null;
   const d=at&&at.toDate?at.toDate():at; if(!d) return null;
@@ -580,7 +602,7 @@ function makeQR(el,size,url){ el.innerHTML=''; if(!window.QRCode){el.textContent
 function openMeeting(id){
   if(cur && cur.id===id) return;
   closeMeeting();
-  cur={id}; seen=new Set(); first=true; rows=[]; delete $('#saveTimes').dataset.dirty;
+  cur={id}; seen=new Set(); first=true; rows=[]; delete $('#saveTimes').dataset.dirty; loadNames();
   makeQR($('#qr'),220,checkinUrl(id));
   unMeet=onSnapshot(doc(db,'meetings',id),s=>{
     if(!s.exists()){ toast('삭제된 모임입니다',true); location.hash=''; return; }
@@ -611,9 +633,12 @@ function renderRows(){
   $('#bigCount').textContent='지금까지 '+n+'명 출석';
   $('#list').innerHTML = n ? rows.map((r,i)=>{
     const isNew=!first&&!seen.has(r.id);
-    const c=cur?catOf(cur,r.at):null;
-    const bd=c==null?'':'<span class="badge b'+c+'">'+esc(labelOf(cur,c))+(c<3?' +'+ptsOf(cur)[c]:'')+'</span>';
-    return '<li class="row'+(isNew?' new':'')+'"><span class="no">'+(i+1)+'</span><span class="name">'+esc(r.name)+bd+'</span><span class="time">'+fmtTime(r.at)+'</span><button class="ghost danger" data-del="'+r.id+'">취소</button></li>';
+    const auto=cur?catOf(cur,r.at):null, ov=(r.cat===0||r.cat===1||r.cat===2||r.cat===3)?r.cat:null, c=ov??auto, P=cur?ptsOf(cur):DEF_PTS;
+    const opt=(v,t)=>'<option value="'+v+'"'+((ov==null?'a':String(ov))===String(v)?' selected':'')+'>'+t+'</option>';
+    const sel='<select class="catsel b'+(c==null?'n':c)+'" data-cat="'+r.id+'" aria-label="'+esc(r.name)+' 출석 구분">'+
+      opt('a','자동: '+(auto==null?'시간 기준 없음':esc(labelOf(cur,auto))+(auto<3?' +'+P[auto]:'')))+
+      opt(0,esc(labelOf(cur,0))+' +'+P[0])+opt(1,esc(labelOf(cur,1))+' +'+P[1])+opt(2,esc(labelOf(cur,2))+' +'+P[2])+opt(3,'출석만 (0점)')+'</select>';
+    return '<li class="row'+(isNew?' new':'')+'"><span class="no">'+(i+1)+'</span><span class="name">'+esc(r.name)+(r.manual?'<span class="badge">직접</span>':'')+sel+'</span><span class="time">'+fmtTime(r.at)+'</span><button class="ghost danger" data-del="'+r.id+'">취소</button></li>';
   }).join('') : '<li class="empty">아직 출석한 사람이 없습니다.</li>';
   rows.forEach(r=>seen.add(r.id)); first=false;
 }
@@ -623,6 +648,34 @@ $('#title').addEventListener('input',()=>{
   titleTimer=setTimeout(()=>updateDoc(doc(db,'meetings',cur.id),{title:v}).catch(()=>toast('제목을 저장하지 못했습니다',true)),600);
 });
 $('#toggle').addEventListener('click',()=>updateDoc(doc(db,'meetings',cur.id),{open:cur.open===false}).catch(()=>toast('바꾸지 못했습니다',true)));
+async function loadNames(){
+  try{
+    const ms=(await getDocs(collection(db,'meetings'))).docs.map(d=>d.id);
+    const names=new Set();
+    await Promise.all(ms.map(async id=>(await getDocs(collection(db,'meetings',id,'attendees'))).docs.forEach(d=>{ const n=String(d.data().name||'').trim(); if(n) names.add(n); })));
+    $('#nameList').innerHTML=[...names].sort((a,b)=>a.localeCompare(b,'ko')).map(n=>'<option value="'+esc(n)+'">').join('');
+  }catch(e){}
+}
+$('#mAdd').addEventListener('click',async()=>{
+  const name=$('#mName').value.trim(), c=Number($('#mCat').value);
+  if(!name){ toast('이름을 입력해 주세요',true); $('#mName').focus(); return; }
+  const k=name.replace(/\s+/g,'');
+  if(rows.some(r=>String(r.name).replace(/\s+/g,'')===k)){ toast(name+' 님은 이미 이 모임에 출석되어 있습니다. 명단에서 구분만 바꿔 주세요',true); return; }
+  const btn=$('#mAdd'); btn.disabled=true;
+  try{
+    await setDoc(doc(db,'meetings',cur.id,'attendees','admin_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)),
+      {name,at:serverTimestamp(),cat:c,manual:true,by:String(auth.currentUser.email||'').toLowerCase()});
+    $('#mName').value=''; toast(name+' 님 출석을 넣었습니다');
+  }catch(e){ toast(e.code==='permission-denied'?'권한이 없습니다. Firebase 규칙을 한 줄 고쳐야 합니다 (설치방법 참고)':'넣지 못했습니다',true); }
+  btn.disabled=false;
+});
+$('#mName').addEventListener('keydown',e=>{ if(e.key==='Enter') $('#mAdd').click(); });
+$('#list').addEventListener('change',e=>{
+  const sel=e.target.closest('[data-cat]'); if(!sel) return;
+  const v=sel.value, r=rows.find(x=>x.id===sel.dataset.cat);
+  updateDoc(doc(db,'meetings',cur.id,'attendees',r.id),{cat:v==='a'?null:Number(v)})
+    .then(()=>toast(r.name+' 님 구분을 바꿨습니다')).catch(()=>{ toast('바꾸지 못했습니다. Firebase 규칙을 확인해 주세요',true); renderRows(); });
+});
 $('#list').addEventListener('click',async e=>{
   const b=e.target.closest('[data-del]'); if(!b) return;
   const r=rows.find(x=>x.id===b.dataset.del);
@@ -665,9 +718,9 @@ $('#back').addEventListener('click',()=>location.hash='');
 ['t1','t2','t3','l1','l2','l3','p1','p2','p3'].forEach(id=>$('#'+id).addEventListener('input',()=>{ $('#saveTimes').dataset.dirty='1'; $('#timeState').textContent='저장 안 됨'; }));
 $('#saveTimes').addEventListener('click',async()=>{
   const t1=$('#t1').value,t2=$('#t2').value,t3=$('#t3').value;
-  if(!t1&&!t2){ toast('정시출근 또는 모임 시작 시각을 입력해 주세요',true); return; }
+  if(!t1&&!t2){ toast('정시출석 또는 모임 시작 시각을 입력해 주세요',true); return; }
   const a=[t1,t2,t3].filter(Boolean).map(toMin);
-  if(a.some((v,i)=>i&&v<=a[i-1])){ toast('시각은 정시출근 → 모임 시작 → 인정 마감 순서로 늦어져야 합니다',true); return; }
+  if(a.some((v,i)=>i&&v<=a[i-1])){ toast('시각은 정시출석 → 모임 시작 → 인정 마감 순서로 늦어져야 합니다',true); return; }
   const pt=[1,2,3].map(i=>{ const v=parseInt($('#p'+i).value,10); return isNaN(v)?DEF_PTS[i-1]:Math.max(0,Math.min(99,v)); });
   try{
     await updateDoc(doc(db,'meetings',cur.id),{
@@ -710,7 +763,7 @@ function calc(){
       const p=people[k]||(people[k]={name:String(a.name).trim(),hits:new Set(),cat:{},last:'',cats:[0,0,0,0],none:0,score:0});
       if(p.hits.has(m.id)) return;
       p.hits.add(m.id); if((m.date||'')>p.last) p.last=m.date||'';
-      const c=catOf(m,a.at); p.cat[m.id]=c;
+      const c=catOf(m,a.at,a.cat); p.cat[m.id]=c;
       if(c==null) p.none++; else { p.cats[c]++; if(c<3) p.score+=ptsOf(m)[c]; }
     });
   });
@@ -732,17 +785,17 @@ function renderStats(){
   const rk=[...list].sort((a,b)=>b.score-a.score||b.count-a.count||a.name.localeCompare(b.name,'ko'));
   let prev=null,rank=0; rk.forEach((p,i)=>{ if(p.score!==prev){ rank=i+1; prev=p.score; } p.rank=rank; });
   $('#pt0').textContent='점수 순위'; $('#ps0').textContent=label+' · 모임 '+ms.length+'회 · '+list.length+'명 · 출력일 '+printed;
-  $('#tRank').innerHTML='<thead><tr><th>순위</th><th style="text-align:left">이름</th><th>정시<br>출근</th><th>모임시작전<br>출근</th><th>모임<br>시작후</th><th>출석</th><th>점수</th></tr></thead><tbody>'+
-    rk.map(p=>'<tr><td class="rk'+(p.rank<=3?' top':'')+'">'+p.rank+'</td><td class="nm"><button data-p="'+esc(keyName(p.name))+'">'+esc(p.name)+'</button></td><td>'+p.cats[0]+'</td><td>'+p.cats[1]+'</td><td>'+p.cats[2]+'</td><td>'+p.count+'</td><td class="pt">'+p.score+'</td></tr>').join('')+'</tbody>';
+  $('#tRank').innerHTML='<thead><tr><th>순위</th><th style="text-align:left">이름</th><th>정시<br>출석</th><th>모임시작전<br>출석</th><th>모임시작후<br>출석</th><th>출석</th><th>점수</th></tr></thead><tbody>'+
+    rk.map(p=>'<tr><td class="rk'+(p.rank<=3?' rk1':'')+'">'+p.rank+'</td><td class="nm"><button data-p="'+esc(keyName(p.name))+'">'+esc(p.name)+'</button></td><td>'+p.cats[0]+'</td><td>'+p.cats[1]+'</td><td>'+p.cats[2]+'</td><td>'+p.count+'</td><td class="pt">'+p.score+'</td></tr>').join('')+'</tbody>';
   const unset=ms.filter(m=>!m.times).length;
-  $('#rLegend').textContent='점수: 모임마다 정한 점수(기본 정시출근 5 · 모임시작전출근 3 · 모임시작후 1)를 더한 값. 같은 점수는 같은 순위.'+(unset?' 시간 기준이 없는 모임 '+unset+'회는 출석만 세고 점수는 0입니다.':'');
+  $('#rLegend').textContent='점수: 모임마다 정한 점수(기본 정시출석 5 · 모임시작전출석 3 · 모임시작후출석 1)를 더한 값. 같은 점수는 같은 순위.'+(unset?' 시간 기준이 없는 모임 '+unset+'회는 출석만 세고 점수는 0입니다.':'');
   $('#tPeople').innerHTML='<thead><tr><th>번호</th><th style="text-align:left">이름</th><th>출석</th><th>출석률</th><th>최근 출석</th></tr></thead><tbody>'+
     list.map((p,i)=>'<tr><td>'+(i+1)+'</td><td class="nm"><button data-p="'+esc(keyName(p.name))+'">'+esc(p.name)+'</button></td><td>'+p.count+' / '+ms.length+'</td><td><div class="bar"><i><b style="width:'+p.rate+'%"></b></i><span>'+p.rate+'%</span></div></td><td>'+(p.last?shortDate(p.last):'')+'</td></tr>').join('')+'</tbody>';
   const byName=[...list].sort((a,b)=>a.name.localeCompare(b.name,'ko'));
   $('#tMatrix').innerHTML='<thead><tr><th style="text-align:left">이름</th>'+ms.map((m,i)=>'<th class="mh" title="'+esc(m.title||'')+'">'+(i+1)+'. '+shortDate(m.date)+'</th>').join('')+'<th>출석</th><th>출석률</th></tr></thead><tbody>'+
     byName.map(p=>'<tr><td class="nm"><button data-p="'+esc(keyName(p.name))+'">'+esc(p.name)+'</button></td>'+ms.map(m=>p.hits.has(m.id)?'<td class="o">'+SYM(p.cat[m.id])+'</td>':'<td class="x">·</td>').join('')+'<td>'+p.count+'</td><td>'+p.rate+'%</td></tr>').join('')+
     '</tbody><tfoot><tr><td style="text-align:left">참석 인원</td>'+ms.map(m=>'<td>'+byName.filter(p=>p.hits.has(m.id)).length+'</td>').join('')+'<td></td><td></td></tr></tfoot>';
-  $('#mLegend').innerHTML='◎ 정시출근 · ○ 모임시작전출근 · △ 모임시작후 · ✓ 출석(시간 기준 없음/인정시간 이후) · · 미출석<br>'+ms.map((m,i)=>(i+1)+'. '+esc(fmtDate(m.date))+' '+esc(m.title||'제목 없음')).join('<br>');
+  $('#mLegend').innerHTML='◎ 정시출석 · ○ 모임시작전출석 · △ 모임시작후출석 · ✓ 출석(시간 기준 없음/인정시간 이후) · · 미출석<br>'+ms.map((m,i)=>(i+1)+'. '+esc(fmtDate(m.date))+' '+esc(m.title||'제목 없음')).join('<br>');
 }
 const SYM=c=>c===0?'◎':c===1?'○':c===2?'△':'✓';
 const shortDate=d=>d?(+d.slice(5,7))+'/'+(+d.slice(8,10)):'';
@@ -759,7 +812,7 @@ function doPrint(cls,landscape){
 $('#pPeople').addEventListener('click',()=>doPrint('p-people',false));
 $('#pRank').addEventListener('click',()=>doPrint('p-rank',false));
 $('#cRank').addEventListener('click',()=>{ renderStats(); const {ms,label}=calc(); const rows=[...document.querySelectorAll('#tRank tbody tr')].map(tr=>[...tr.children].map(td=>td.textContent));
-  saveCsv('점수순위_'+label,[['순위','이름','정시출근','모임시작전출근','모임시작후','출석','점수']].concat(rows)); });
+  saveCsv('점수순위_'+label,[['순위','이름','정시출석','모임시작전출석','모임시작후출석','출석','점수']].concat(rows)); });
 $('#pMatrix').addEventListener('click',()=>{ const n=calc().ms.length; doPrint('p-matrix',n>8); });
 function saveCsv(name,rows){
   const csv='\uFEFF'+rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n');
@@ -774,7 +827,7 @@ document.addEventListener('click',e=>{
   const b=e.target.closest('[data-p]'); if(!b||!SD) return;
   const {ms,list}=calc(); const p=list.find(x=>keyName(x.name)===b.dataset.p); if(!p) return;
   $('#popName').textContent=p.name+' 님';
-  $('#popSum').textContent='모임 '+ms.length+'회 중 '+p.count+'회 출석 · 출석률 '+p.rate+'% · 점수 '+p.score+'점 (정시출근 '+p.cats[0]+' · 모임시작전 '+p.cats[1]+' · 모임시작후 '+p.cats[2]+')';
+  $('#popSum').textContent='모임 '+ms.length+'회 중 '+p.count+'회 출석 · 출석률 '+p.rate+'% · 점수 '+p.score+'점 (정시출석 '+p.cats[0]+' · 모임시작전 '+p.cats[1]+' · 모임시작후출석 '+p.cats[2]+')';
   $('#popList').innerHTML=[...ms].reverse().map(m=>{ const c=p.cat[m.id];
     const r=!p.hits.has(m.id)?'<span class="n">미출석</span>':'<span class="y">'+(c==null?'출석':c===3?'출석 (시간 외)':CATS[c]+' +'+ptsOf(m)[c])+'</span>';
     return '<li><span>'+esc(fmtDate(m.date))+'<br><small class="muted">'+esc(m.title||'')+'</small></span>'+r+'</li>'; }).join('');
