@@ -73,6 +73,28 @@ table.mx tfoot td{font-weight:700;border-top:1px solid var(--gold)}
 .datein{border:1px solid var(--line);background:var(--item,rgba(255,255,255,.6));border-radius:999px;padding:4px 12px;font-size:14px;color:var(--muted)}
 .tag.ns{background:rgba(0,0,0,.06);color:var(--muted)}
 
+/* A4 QR 인쇄 */
+#printQr{display:none}
+@media print{
+  body.p-qr > *:not(#printQr){display:none!important}
+  body.p-qr #printQr{display:flex!important;flex-direction:column;align-items:center;width:210mm;height:296mm;padding:16mm 18mm 10mm;box-sizing:border-box;color:#2A1A12;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .pq-frame{flex:1;width:100%;border:1.2pt solid #B88A4A;border-radius:87mm 87mm 5mm 5mm;display:flex;flex-direction:column;align-items:center;padding:30mm 14mm 12mm;position:relative}
+  .pq-frame::after{content:"";position:absolute;inset:2.2mm;border:.5pt solid #B88A4A;border-radius:85mm 85mm 3.5mm 3.5mm;opacity:.7}
+  .pq-eye{margin:0;font-family:"Cormorant Garamond",Georgia,serif;font-size:13pt;letter-spacing:.45em;color:#B88A4A;padding-left:.45em}
+  .pq-title{margin:4mm 0 0;font-family:"Noto Serif KR",serif;font-weight:700;font-size:26pt;line-height:1.3;text-align:center;word-break:keep-all;max-width:150mm}
+  .pq-date{margin:3mm 0 0;font-size:12pt;color:#6B5547}
+  .pq-orn{width:56mm;height:6mm;margin:6mm 0 7mm}
+  .pq-orn line,.pq-orn path{stroke:#B88A4A;stroke-width:.8;fill:none}
+  .pq-orn path.f{fill:#B88A4A}
+  .pq-qrwrap{padding:5mm;border:.6pt solid #D9C3A5;border-radius:4mm;background:#fff}
+  .pq-qr{width:105mm;height:105mm;line-height:0}
+  .pq-qr img,.pq-qr canvas{width:105mm!important;height:105mm!important;display:block}
+  .pq-steps{list-style:none;margin:auto 0 0;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:5mm;width:100%;max-width:150mm}
+  .pq-steps li{text-align:center;word-break:keep-all;font-size:11.5pt;line-height:1.45;color:#3A2419}
+  .pq-steps b{display:block;width:8mm;height:8mm;margin:0 auto 2mm;border:.8pt solid #B88A4A;border-radius:50%;font-family:"Cormorant Garamond",Georgia,serif;font-size:13pt;line-height:7.4mm;color:#9C4A2A}
+  .pq-foot{margin:4mm 0 0;font-size:9.5pt;color:#8A7363}
+}
+
 /* 인쇄: 배경 없이 표만 깔끔하게 */
 @media print{
   body::before{display:none!important}
@@ -217,6 +239,27 @@ ol.list{list-style:none;margin:0;padding:0}
   </section>
 </div>
 
+<!-- A4 QR 인쇄용 (화면에는 안 보임) -->
+<div id="printQr" aria-hidden="true">
+  <div class="pq-frame">
+    <p class="pq-eye">WELCOME</p>
+    <h1 class="pq-title" id="pqTitle"></h1>
+    <p class="pq-date" id="pqDate"></p>
+    <svg class="pq-orn" viewBox="0 0 160 16" aria-hidden="true">
+      <line x1="0" y1="8" x2="62" y2="8"/><line x1="98" y1="8" x2="160" y2="8"/>
+      <path d="M80 2 C86 6 86 10 80 14 C74 10 74 6 80 2 Z" class="f"/>
+      <path d="M70 8 C73 5 76 5 78 8 C76 11 73 11 70 8 Z"/><path d="M90 8 C87 5 84 5 82 8 C84 11 87 11 90 8 Z"/>
+    </svg>
+    <div class="pq-qrwrap"><div class="pq-qr" id="pqQr"></div></div>
+    <ol class="pq-steps">
+      <li><b>1</b><span>휴대폰 카메라로<br>QR을 비춰 주세요</span></li>
+      <li><b>2</b><span>열리는 화면에<br>성함을 적고</span></li>
+      <li><b>3</b><span>출석 버튼을<br>누르면 끝!</span></li>
+    </ol>
+  </div>
+  <p class="pq-foot">출석은 한 폰에서 한 사람만 할 수 있습니다</p>
+</div>
+
 <div class="pop" id="pop" hidden>
   <div class="card">
     <div class="shead"><h2 class="sec-title" id="popName"></h2><button class="ghost" id="popClose">닫기</button></div>
@@ -275,6 +318,7 @@ ol.list{list-style:none;margin:0;padding:0}
     </div>
     <div class="acts">
       <button id="full">QR 크게 띄우기</button>
+      <button id="printQrBtn">🖨 QR 인쇄 (A4)</button>
       <button id="copy">출석 주소 복사</button>
       <button id="csv">명단 엑셀(CSV) 저장</button>
       <button id="nostats"></button>
@@ -516,6 +560,18 @@ $('#list').addEventListener('click',async e=>{
   if(confirm(r.name+' 님의 출석을 취소할까요?')) deleteDoc(doc(db,'meetings',cur.id,'attendees',r.id)).catch(()=>toast('취소하지 못했습니다',true));
 });
 $('#full').addEventListener('click',()=>{ $('#big').hidden=false; makeQR($('#bigQr'),600,checkinUrl(cur.id)); });
+$('#printQrBtn').addEventListener('click',()=>{
+  if(!window.QRCode){ toast('QR을 만들지 못했습니다',true); return; }
+  $('#pqTitle').textContent=cur.title||'출석';
+  $('#pqDate').textContent=fmtDate(cur.date);
+  const el=$('#pqQr'); el.innerHTML='';
+  new QRCode(el,{text:checkinUrl(cur.id),width:1000,height:1000,colorDark:'#2A1A12',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.H});
+  const st=document.createElement('style'); st.textContent='@page{size:A4 portrait;margin:0}';
+  document.head.appendChild(st); document.body.classList.add('p-qr');
+  const done=()=>{ document.body.classList.remove('p-qr'); st.remove(); removeEventListener('afterprint',done); };
+  addEventListener('afterprint',done);
+  setTimeout(()=>window.print(),400);
+});
 $('#closeBig').addEventListener('click',()=>$('#big').hidden=true);
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') $('#big').hidden=true; });
 $('#copy').addEventListener('click',async()=>{ const u=checkinUrl(cur.id); try{ await navigator.clipboard.writeText(u); toast('출석 주소를 복사했습니다'); }catch(e){ prompt('출석 주소',u); } });
