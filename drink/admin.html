@@ -74,6 +74,7 @@ table.ol tr.dn td.ck{opacity:1}
 .asks label{display:flex;align-items:center;gap:5px;font-weight:700}
 .asks small{font-weight:400;color:var(--muted)}
 .asks input{width:18px;height:18px;accent-color:var(--green)}
+.asks select{border:1px solid var(--line);border-radius:999px;padding:5px 10px;background:#fff;color:inherit;font-weight:700}
 .filters{display:flex;gap:6px;flex-wrap:wrap;margin:-4px 0 12px}
 .filters select{border:1px solid var(--line);border-radius:999px;padding:7px 12px;background:#fff;color:inherit;font-weight:700}
 .tg{font-size:13px;color:var(--muted);margin-top:4px}
@@ -190,7 +191,8 @@ table.gt td:first-child,table.gt th:first-child{text-align:left;font-weight:700}
         </div>
         <div class="asks">
           <span class="muted">참여자에게 추가로 묻기</span>
-          <label><input type="checkbox" id="askGroup"> 조 선택 <small>(1~10조)</small></label>
+          <label><input type="checkbox" id="askGroup"> 조 선택</label>
+          <select id="groupCount" aria-label="조 개수" hidden><option value="1">1~1조</option><option value="2">1~2조</option><option value="3">1~3조</option><option value="4">1~4조</option><option value="5">1~5조</option><option value="6">1~6조</option><option value="7">1~7조</option><option value="8">1~8조</option><option value="9">1~9조</option><option value="10">1~10조</option></select>
           <label><input type="checkbox" id="askGender"> 성별 선택 <small>(형제·자매)</small></label>
         </div>
       </div>
@@ -291,7 +293,7 @@ onAuthStateChanged(auth,u=>{
     unList=onSnapshot(query(collection(db,'drink_sessions'),orderBy('createdAt','desc')),s=>{
       const ss=s.docs.map(d=>({id:d.id,...d.data()}));
       lastMenu=(ss.find(x=>x.menu&&x.menu.length)||{}).menu||null;
-      lastAsk=ss[0]?{g:ss[0].askGroup,s:ss[0].askGender}:{};
+      lastAsk=ss[0]?{g:ss[0].askGroup,s:ss[0].askGender,n:ss[0].groupCount}:{};
       $('#slist').innerHTML=ss.length?ss.map(x=>'<li><button data-id="'+x.id+'"><span><span class="t">'+esc(x.title||'제목 없음')+'</span> <span class="chip'+(x.open===false?' off':'')+'">'+(x.open===false?'마감':'받는 중')+'</span></span><span class="d">'+fmtDate(x.date)+'</span></button></li>').join(''):'<li class="empty">아직 만든 것이 없습니다. 위에 제목을 적고 새로 받아 보세요.</li>';
     },e=>{
       if(e.code==='permission-denied'){ notStaff=true; if(unList){unList();unList=null;} closeSess(); show('login'); $('#loginMsg').innerHTML='<p class="msg warn">관리자 계정이 아닙니다. 관리자 계정으로 로그인해 주세요.</p>'; }
@@ -308,7 +310,7 @@ $('#create').addEventListener('click',async()=>{
     let menu=null;
     try{ const d=await getDoc(doc(db,'drink_settings','menu')); if(d.exists()) menu=d.data().items; }catch(e){}
     menu=(menu&&menu.length?menu:(lastMenu||DEFAULT_MENU)).map(m=>({...m,soldout:false}));
-    const r=await addDoc(collection(db,'drink_sessions'),{title,date:todayStr(),open:true,menu,askGroup:!!lastAsk.g,askGender:!!lastAsk.s,createdAt:serverTimestamp()});
+    const r=await addDoc(collection(db,'drink_sessions'),{title,date:todayStr(),open:true,menu,askGroup:!!lastAsk.g,askGender:!!lastAsk.s,groupCount:lastAsk.n||10,createdAt:serverTimestamp()});
     $('#newTitle').value=''; location.hash='s='+r.id;
   }catch(e){ toast('만들지 못했습니다',true); }
   $('#create').disabled=false;
@@ -327,6 +329,7 @@ function openSess(id){
     if(!s.exists()){ toast('삭제되었습니다',true); location.hash=''; return; }
     cur={id,...s.data()};
     $('#askGroup').checked=!!cur.askGroup; $('#askGender').checked=!!cur.askGender;
+    $('#groupCount').hidden=!cur.askGroup; $('#groupCount').value=String(gCount());
     if(document.activeElement!==$('#title')) $('#title').value=cur.title||'';
     if(document.activeElement!==$('#date')) $('#date').value=cur.date||'';
     $('#bigTitle').textContent=cur.title||'선택하기';
@@ -341,7 +344,8 @@ function openSess(id){
   show('sess');
 }
 function closeSess(){ if(unS)unS(); if(unO)unO(); unS=unO=null; cur=null; $('#big').hidden=true; }
-const GROUPS=['1','2','3','4','5','6','7','8','9','10'];
+const gCount=()=>{ const n=parseInt(cur&&cur.groupCount,10); return n>=1&&n<=10?n:10; };
+const groupsNow=()=>{ const n=Math.max(gCount(),...orders.map(o=>+o.group||0)); return Array.from({length:Math.min(n,10)},(_,i)=>String(i+1)); };
 const showG=()=>!!(cur&&(cur.askGroup||orders.some(o=>o.group)));
 const showS=()=>!!(cur&&(cur.askGender||orders.some(o=>o.gender)));
 const gLabel=g=>g?g+'조':'';
@@ -357,7 +361,7 @@ function tallyOf(list){
 }
 function groupTable(list){
   const items=tallyOf(list).map(t=>t.item);
-  const rows=GROUPS.map(g=>({g,l:list.filter(o=>o.group===g)})).filter(r=>r.l.length);
+  const rows=groupsNow().map(g=>({g,l:list.filter(o=>o.group===g)})).filter(r=>r.l.length);
   const none=list.filter(o=>!o.group); if(none.length) rows.push({g:'',l:none});
   return {items,rows};
 }
@@ -371,7 +375,7 @@ function renderOrders(){
   if(!cur) return;
   const G=showG(), S=showS();
   $('#filters').hidden=!(G||S); $('#fGroup').hidden=!G; $('#fGender').hidden=!S;
-  if(!$('#fGroup').options.length) $('#fGroup').innerHTML='<option value="">조 전체</option>'+GROUPS.map(g=>'<option value="'+g+'">'+g+'조</option>').join('')+'<option value="-">조 없음</option>';
+  { const fv=$('#fGroup').value, gs=groupsNow(); $('#fGroup').innerHTML='<option value="">조 전체</option>'+gs.map(g=>'<option value="'+g+'">'+g+'조</option>').join('')+'<option value="-">조 없음</option>'; $('#fGroup').value=(fv===''||fv==='-'||gs.includes(fv))?fv:''; }
   const list=filtered();
   $('#count').textContent=list.length;
   $('#bigCount').textContent='지금까지 '+orders.length+'명 선택';
@@ -392,6 +396,7 @@ function renderOrders(){
 $('#fGroup').addEventListener('change',renderOrders);
 $('#fGender').addEventListener('change',renderOrders);
 $('#askGroup').addEventListener('change',e=>updateDoc(doc(db,'drink_sessions',cur.id),{askGroup:e.target.checked}).then(()=>toast(e.target.checked?'참여 화면에 조 선택을 추가했습니다':'조 선택을 뺐습니다')).catch(()=>toast('바꾸지 못했습니다',true)));
+$('#groupCount').addEventListener('change',e=>updateDoc(doc(db,'drink_sessions',cur.id),{groupCount:+e.target.value}).then(()=>toast('조를 1~'+e.target.value+'조로 정했습니다')).catch(()=>toast('바꾸지 못했습니다',true)));
 $('#askGender').addEventListener('change',e=>updateDoc(doc(db,'drink_sessions',cur.id),{askGender:e.target.checked}).then(()=>toast(e.target.checked?'참여 화면에 성별 선택을 추가했습니다':'성별 선택을 뺐습니다')).catch(()=>toast('바꾸지 못했습니다',true)));
 $('#sort').addEventListener('change',renderOrders);
 $('#onlyTodo').addEventListener('change',renderOrders);

@@ -125,7 +125,10 @@ function renderMenu(){
 }
 function renderAsks(){
   $('#askG').hidden=!sess.askGroup; $('#askS').hidden=!sess.askGender;
-  $('#gpick').innerHTML=['1','2','3','4','5','6','7','8','9','10'].map(g=>'<button data-g="'+g+'" aria-pressed="'+(grp===g)+'">'+g+'조</button>').join('');
+  const n=Math.min(10,Math.max(1,parseInt(sess.groupCount,10)||10));
+  if(grp&&+grp>n) grp='';
+  $('#gpick').style.gridTemplateColumns='repeat('+Math.min(5,n)+',1fr)';
+  $('#gpick').innerHTML=Array.from({length:n},(_,k)=>String(k+1)).map(g=>'<button data-g="'+g+'" aria-pressed="'+(grp===g)+'">'+g+'조</button>').join('');
   document.querySelectorAll('#spick button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.s===gen));
 }
 $('#gpick').addEventListener('click',e=>{ const b=e.target.closest('[data-g]'); if(!b) return; grp=b.dataset.g; renderAsks(); });
