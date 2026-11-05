@@ -48,12 +48,12 @@
 @media (max-width:600px){.stage{grid-template-columns:1fr;justify-items:center;text-align:center}.acts{justify-content:center}}
 
 .total{display:flex;align-items:baseline;gap:8px;margin-bottom:14px}
-.total b{font-family:var(--title);font-size:44px;line-height:1;color:var(--green)}
+.total b{font-family:var(--title);font-size:44px;line-height:1;color:var(--accent)}
 .tally{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
 .tcard{border:1px solid var(--line);border-radius:16px;padding:12px 14px;background:#fff}
 .tcard .n{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .tcard .n b{font-size:17px;word-break:keep-all}
-.tcard .n span{font-family:var(--title);font-size:30px;color:var(--green);line-height:1}
+.tcard .n span{font-family:var(--title);font-size:30px;color:var(--accent);line-height:1}
 .tcard .s{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
 .tbar{height:8px;border-radius:99px;background:var(--mint);margin-top:10px;overflow:hidden}.tbar i{display:block;height:100%;background:var(--green2);border-radius:99px}
 .tpct{font-size:13px;color:var(--muted);margin-top:4px}
@@ -63,7 +63,7 @@ table.ol th,table.ol td{padding:10px 8px;border-bottom:1px solid var(--line);tex
 table.ol th{font-size:13px;color:var(--muted);font-weight:400;white-space:nowrap}
 table.ol td.nm{font-weight:700;white-space:nowrap}
 table.ol td.tm{color:var(--muted);white-space:nowrap;font-size:14px}
-table.ol tr.dn td{opacity:.45}
+table.ol tr.dn td{opacity:.5}
 table.ol tr.dn td.ck{opacity:1}
 .ck input{width:22px;height:22px;accent-color:var(--green)}
 .tscroll{overflow-x:auto}
@@ -81,9 +81,9 @@ table.ol tr.dn td.ck{opacity:1}
 .sub{font-family:var(--title);font-size:16px;margin:18px 0 8px}
 table.gt th,table.gt td{text-align:center;white-space:nowrap}
 table.gt td:first-child,table.gt th:first-child{text-align:left;font-weight:700}
-.badge{display:inline-block;font-size:12px;border-radius:999px;padding:1px 8px;font-weight:700;background:var(--mint);color:var(--green)}
+.badge{display:inline-block;font-size:12px;border-radius:999px;padding:1px 8px;font-weight:700;background:var(--mint);color:var(--accent)}
 .badge.f{background:#F3E1E6;color:#9A3E5A}
-@media (prefers-color-scheme:dark){.filters select{background:#26372E}.badge.f{background:#4a2a35;color:#F2B8C8}}
+@media (prefers-color-scheme:dark){.filters select,.asks select{background:#283A31;color:var(--ink)}.badge.f{background:#4a2a35;color:#F2B8C8}}
 
 /* 메뉴 편집 */
 .mrow{display:grid;grid-template-columns:.8fr 1.6fr auto auto;gap:6px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
