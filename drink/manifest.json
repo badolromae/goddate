@@ -1,0 +1,32 @@
+{
+  "id": "/goddate/drink/admin.html",
+  "name": "선택 신청 관리",
+  "short_name": "선택신청",
+  "description": "갓데이트 선택 신청(음료 주문 등) QR과 신청 현황 관리",
+  "start_url": "./admin.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#163327",
+  "theme_color": "#163327",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

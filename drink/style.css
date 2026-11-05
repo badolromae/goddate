@@ -1,0 +1,56 @@
+/* 갓데이트 선택 신청 — 진초록 테마 */
+:root{
+  --bg:#163327; --bg2:#1E4232;
+  --paper:#F7F3E8; --paper2:#EFE9D8; --card-line:rgba(31,77,54,.14);
+  --ink:#1B2E24; --muted:#5E6E63; --line:rgba(27,46,36,.14);
+  --green:#1F5A3F; --green2:#2E7352; --mint:#DCEBDD; --mint2:#C2DCC6;
+  --amber:#C8902E; --amber-soft:#F5E6C6;
+  --warn:#B23A2E; --warn-soft:#F8E2DD;
+  --ok:#2E7352; --ok-soft:#DCEBDD;
+  --title:"Gowun Batang","Noto Serif KR",serif;
+  --sans:"Gowun Dodum","Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  color-scheme:light dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{font-family:var(--sans);color:var(--ink);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased;
+  background:var(--bg);padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
+/* 배경: 진초록 + 은은한 잎·체크 선 무늬 */
+body::before{content:"";position:fixed;inset:0;z-index:-1;
+  background:
+    radial-gradient(1200px 600px at 50% -10%,rgba(255,255,255,.10),transparent 60%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'%3E%3Cg fill='none' stroke='%23F7F3E8' stroke-opacity='.07' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='30' cy='32' r='11'/%3E%3Cpath d='M25 32l4 4 7-8'/%3E%3Cpath d='M86 96c12-16 30-16 36-14-2 16-20 26-36 14z'/%3E%3Cpath d='M86 96c12-5 22-9 30-14'/%3E%3Ccircle cx='104' cy='30' r='2'/%3E%3Ccircle cx='34' cy='104' r='2'/%3E%3C/g%3E%3C/svg%3E"),
+    linear-gradient(var(--bg),var(--bg2));}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+[hidden]{display:none!important}
+h1{margin:0;font-family:var(--title);font-weight:700;letter-spacing:-.01em}
+.muted{color:var(--muted)}
+.card{background:var(--paper);border-radius:22px;box-shadow:0 12px 40px rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.4)}
+.field{width:100%;background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:13px 14px;font-size:17px}
+.field:focus{outline:none;border-color:var(--green2);box-shadow:0 0 0 3px var(--mint)}
+.primary{border:0;border-radius:14px;padding:15px 20px;background:var(--green);color:#fff;font-size:17px;font-weight:700;width:100%}
+.primary:disabled{opacity:.45;cursor:not-allowed}
+.ghost{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.28);color:#F7F3E8;border-radius:999px;padding:8px 14px;font-size:14px}
+.card .ghost{background:#fff;border:1px solid var(--line);color:var(--muted)}
+.ghost.danger{color:var(--warn)}
+.chip{display:inline-block;font-size:12px;border-radius:999px;padding:2px 9px;background:var(--mint);color:var(--green);font-weight:700}
+.chip.off{background:var(--paper2);color:var(--muted)}
+.msg{border-radius:12px;padding:12px 14px;font-size:15px;margin:0 0 14px}
+.msg.warn{background:var(--warn-soft);color:var(--warn)}
+.msg.ok{background:var(--ok-soft);color:var(--ok)}
+.toast{position:fixed;left:50%;top:calc(16px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:var(--green);color:#fff;padding:12px 20px;border-radius:999px;font-weight:700;z-index:60;opacity:0;pointer-events:none;transition:opacity .2s;max-width:92vw;text-align:center;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.toast.show{opacity:1}
+.toast.err{background:var(--warn)}
+.brand{display:flex;align-items:center;gap:10px;color:#F7F3E8}
+.brand svg{width:34px;height:34px;flex:none}
+.brand small{display:block;font-size:12px;letter-spacing:.25em;opacity:.7;font-family:var(--sans)}
+
+/* 다크 모드: 브라우저가 억지로 색을 바꾸지 않도록 밤 버전 제공 */
+@media (prefers-color-scheme:dark){
+  :root{--paper:#1F2D26;--paper2:#26372E;--ink:#EEF0E6;--muted:#A9B8AC;--line:rgba(238,240,230,.14);--mint:#2B4A39;--mint2:#355a45;--green:#3E8A62;--green2:#4FA174;--amber-soft:#4a3a1c;--warn-soft:#4a2620;--warn:#F2A193;--ok-soft:#2B4A39;--ok:#9FD3B2}
+  .field{background:#26372E;color:var(--ink)}
+  .card{border-color:rgba(255,255,255,.06)}
+  .card .ghost{background:#26372E;color:var(--muted)}
+}

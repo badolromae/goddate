@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#163327">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>선택하기</title>
+<link rel="icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@700&family=Gowun+Dodum&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+.wrap{max-width:480px;margin:0 auto;padding:22px 16px 40px}
+.head{text-align:center;color:#F7F3E8;margin:6px 0 18px}
+.head .eye{font-size:12px;letter-spacing:.35em;opacity:.75;margin:0}
+.head h1{font-size:clamp(24px,7vw,30px);margin:6px 0 2px;word-break:keep-all;line-height:1.3}
+.head .date{opacity:.75;font-size:14px;margin:0}
+.sheet{padding:22px 18px}
+label.lb{display:block;font-weight:700;margin:0 0 8px}
+.cat{font-family:var(--title);font-size:15px;color:var(--green);margin:20px 0 8px;display:flex;align-items:center;gap:8px}
+.cat::after{content:"";flex:1;height:1px;background:var(--line)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.item{position:relative;text-align:left;border:1.5px solid var(--line);background:#fff;border-radius:16px;padding:14px 12px;min-height:64px;font-size:17px;font-weight:700;line-height:1.3;word-break:keep-all}
+.item small{display:block;font-weight:400;font-size:12px;color:var(--warn);margin-top:3px}
+.hint{text-align:center;font-size:14px;margin:16px 0 0}
+.item[aria-pressed="true"]{background:var(--green);border-color:var(--green);color:#fff}
+.item[aria-pressed="true"]::after{content:"✓";position:absolute;top:8px;right:10px;font-size:15px}
+.item:disabled{opacity:.45;cursor:not-allowed}
+.go{margin-top:20px;font-size:20px;padding:18px;border-radius:999px;background:var(--green);box-shadow:0 8px 22px rgba(31,90,63,.35)}
+.done{text-align:center;padding:30px 20px 24px}
+.cup{width:96px;height:96px;margin:0 auto 14px;border-radius:50%;background:var(--mint);display:grid;place-items:center}
+.cup svg{width:52px;height:52px}
+.done .who{font-family:var(--title);font-size:24px;margin:0}
+.done .what{font-size:22px;font-weight:700;color:var(--green);margin:10px 0 4px}
+.done .t{font-size:14px;color:var(--muted);margin:0 0 20px}
+.done .row{display:flex;gap:8px;justify-content:center}
+.done .row button{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:10px 18px;font-weight:700}
+.closed{padding:26px 20px;text-align:center}
+@media (prefers-color-scheme:dark){
+  .item,}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="head">
+    <p class="eye">CHOOSE ONE</p>
+    <h1 id="title">선택하기</h1>
+    <p class="date" id="date"></p>
+  </div>
+
+  <p class="card closed muted" id="loading">불러오는 중…</p>
+  <div class="card closed" id="bad" hidden><b>링크가 올바르지 않습니다</b><p class="muted">안내된 QR을 다시 찍어 주세요.</p></div>
+  <div class="card closed" id="closedBox" hidden><b>신청이 마감되었습니다</b><p class="muted" style="margin-bottom:0">다음에 또 이용해 주세요.</p></div>
+
+  <section class="card sheet" id="form" hidden>
+    <label class="lb" for="name">이름</label>
+    <input class="field" id="name" maxlength="20" placeholder="이름을 적어 주세요" autocomplete="name">
+    <div id="menu"></div>
+    <p class="hint muted" id="hint">하나를 골라 주세요</p>
+    <button class="primary go" id="go">선택 완료</button>
+  </section>
+
+  <section class="card done" id="done" hidden>
+    <div class="cup"><svg viewBox="0 0 48 48" fill="none" stroke="#1F5A3F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M13 25l7 7 15-16"/></svg></div>
+    <p class="who" id="who"></p>
+    <p class="what" id="what"></p>
+        <p class="t" id="when"></p>
+    <div class="row" id="doneBtns"><button id="change">다시 고르기</button><button id="cancel" style="color:var(--warn)">선택 취소</button></div>
+  </section>
+</main>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="../config.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, deleteDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+const firebaseConfig=(window.APP_CONFIG||{}).firebase;
+const $=s=>document.querySelector(s);
+const esc=t=>{const d=document.createElement('div');d.textContent=t??'';return d.innerHTML};
+let tt; const toast=(m,err)=>{const t=$('#toast');t.textContent=m;t.classList.toggle('err',!!err);t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),2600)};
+const ls={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+const getCookie=k=>{const m=document.cookie.match(new RegExp('(?:^|; )'+k+'=([^;]*)'));return m?decodeURIComponent(m[1]):null};
+const setCookie=(k,v)=>{document.cookie=k+'='+encodeURIComponent(v)+'; max-age=63072000; path=/; SameSite=Lax'};
+function show(id){ ['loading','bad','closedBox','form','done'].forEach(x=>$('#'+x).hidden=x!==id); }
+
+const sid=new URLSearchParams(location.search).get('s');
+if(!firebaseConfig||!sid||!/^[A-Za-z0-9]{6,40}$/.test(sid)){ show('bad'); throw new Error('bad'); }
+const db=getFirestore(initializeApp(firebaseConfig));
+
+// 폰 고유번호 (한 폰 = 하나 선택, 다시 고르기 가능)
+let dev=ls.get('drink_dev')||getCookie('drink_dev');
+if(!dev){ dev=Math.random().toString(36).slice(2,10)+Date.now().toString(36); }
+ls.set('drink_dev',dev); setCookie('drink_dev',dev);
+const orderRef=doc(db,'drink_sessions',sid,'orders',dev);
+
+let sess=null, mine=null, editing=false, pick=null;
+const savedName=ls.get('pick_name')||ls.get('drink_name')||ls.get('myname'); if(savedName) $('#name').value=savedName;
+
+function renderMenu(){
+  const menu=(sess.menu||[]);
+  const cats=[...new Set(menu.map(m=>m.cat||''))];
+  $('#menu').innerHTML=cats.map(c=>(c?'<p class="cat">'+esc(c)+'</p>':'<div style="height:16px"></div>')+'<div class="grid">'+
+    menu.filter(m=>(m.cat||'')===c).map(m=>'<button class="item" data-id="'+esc(m.id)+'" aria-pressed="'+(pick===m.id)+'"'+(m.soldout?' disabled':'')+'>'+esc(m.name)+(m.soldout?'<small>마감</small>':'')+'</button>').join('')+'</div>').join('') || '<p class="muted">아직 목록이 없습니다.</p>';
+  const it=menu.find(m=>m.id===pick);
+  if(it&&it.soldout) pick=null;
+  const cur=menu.find(m=>m.id===pick);
+  $('#hint').textContent=cur?'선택: '+cur.name:'하나를 골라 주세요';
+}
+function render(){
+  if(!sess) return;
+  $('#title').textContent=sess.title||'선택하기';
+  $('#date').textContent=sess.date?new Date(sess.date+'T00:00').toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'short'}):'';
+  if(mine && !editing){
+    $('#who').textContent=mine.name+' 님 선택 완료';
+    $('#what').textContent=mine.item;
+    $('#when').textContent=mine.at&&mine.at.toDate?mine.at.toDate().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})+' 접수':'';
+    $('#doneBtns').hidden=sess.open===false;
+    show('done'); return;
+  }
+  if(sess.open===false){ show('closedBox'); return; }
+  renderMenu(); show('form');
+}
+$('#menu').addEventListener('click',e=>{
+  const b=e.target.closest('.item'); if(!b||b.disabled) return;
+  pick=b.dataset.id; renderMenu();
+});
+
+onSnapshot(doc(db,'drink_sessions',sid),s=>{
+  if(!s.exists()){ show('bad'); return; }
+  sess=s.data(); render();
+},()=>{ $('#loading').textContent='연결하지 못했습니다. 잠시 후 새로고침해 주세요.'; });
+getDoc(orderRef).then(s=>{ if(s.exists()){ mine=s.data(); pick=mine.itemId||null; } render(); }).catch(()=>{});
+
+$('#go').addEventListener('click',async()=>{
+  const name=$('#name').value.trim();
+  if(!name){ toast('이름을 적어 주세요',true); $('#name').focus(); return; }
+  const it=(sess.menu||[]).find(m=>m.id===pick);
+  if(!it){ toast('하나를 골라 주세요',true); return; }
+  if(it.soldout){ toast('마감된 항목입니다. 다른 것을 골라 주세요',true); return; }
+  const btn=$('#go'); btn.disabled=true;
+  const data={name,item:it.name,itemId:it.id,temp:'',note:'',at:serverTimestamp()}; // temp·note는 빈 값 (지난번 규칙과 호환)
+  try{
+    await setDoc(orderRef,data);
+    ls.set('pick_name',name);
+    mine={...data,at:{toDate:()=>new Date()}}; editing=false;
+    if(navigator.vibrate) navigator.vibrate(60);
+    render(); window.scrollTo({top:0,behavior:'smooth'});
+  }catch(e){ toast(sess.open===false?'신청이 마감되었습니다':'저장하지 못했습니다. 인터넷 연결을 확인해 주세요',true); }
+  btn.disabled=false;
+});
+$('#change').addEventListener('click',()=>{ editing=true; render(); });
+$('#cancel').addEventListener('click',async()=>{
+  if(!confirm('선택을 취소할까요?')) return;
+  try{ await deleteDoc(orderRef); mine=null; pick=null; editing=false; render(); toast('선택을 취소했습니다'); }
+  catch(e){ toast('취소하지 못했습니다',true); }
+});
+</script>
+</body>
+</html>
