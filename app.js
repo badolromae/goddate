@@ -153,7 +153,12 @@ function renderNotices(notices) {
       ${unseen ? '<span class="card__dot" title="새 공지"></span>' : ""}
       <p class="card__date">${formatDate(n.date)}</p>
       <h2 class="card__title">${escapeHtml(n.title)}</h2>
-      ${n.imageUrl ? `<img class="card__thumb" src="${n.imageUrl.replace(/"/g, "&quot;")}" alt="" loading="lazy" onerror="this.style.display='none'" />` : ""}
+      ${(() => {
+        const imgs = (Array.isArray(n.images) && n.images.length) ? n.images : (n.imageUrl ? [n.imageUrl] : []);
+        if (!imgs.length) return "";
+        const badge = imgs.length > 1 ? `<span class="card__imgcount">📷 ${imgs.length}</span>` : "";
+        return `<div class="card__thumbwrap"><img class="card__thumb" src="${imgs[0].replace(/"/g, "&quot;")}" alt="" loading="lazy" onerror="this.parentNode.style.display='none'" />${badge}</div>`;
+      })()}
       <p class="card__preview">${escapeHtml(stripToText(n.body))}</p>
       <span class="card__more">자세히 보기 →</span>
     `;
@@ -232,14 +237,17 @@ function openModal(n, cardEl) {
 
   modalBody.innerHTML = "";
 
-  if (n.imageUrl) {
+  // 사진: images 배열이 있으면 전부, 없으면 옛 imageUrl 1장
+  const imgs = (Array.isArray(n.images) && n.images.length) ? n.images : (n.imageUrl ? [n.imageUrl] : []);
+  imgs.forEach((url) => {
+    if (!url) return;
     const img = document.createElement("img");
-    img.src = n.imageUrl;
+    img.src = url;
     img.alt = "";
     img.loading = "lazy";
     img.onerror = () => { img.style.display = "none"; };
     modalBody.appendChild(img);
-  }
+  });
 
   const textEl = document.createElement("div");
   textEl.className = "modal__text";
@@ -314,6 +322,7 @@ async function loadNotices() {
         title: d.title || "(제목 없음)",
         body: d.body || "",
         imageUrl: d.imageUrl || "",
+        images: Array.isArray(d.images) ? d.images : [],
         links: Array.isArray(d.links) ? d.links : [],
         date: d.date || "",
         pinned: !!d.pinned,
