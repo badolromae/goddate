@@ -26,8 +26,8 @@ function showMsg(el, text, ok) {
 
 // 지금 수정 중인 공지 정보 (없으면 새 글 작성)
 let editingId = null;
-let editingImageUrl = "";
-let pickedFile = null;
+let existingImages = [];  // 수정 시: 이미 올라가 있던 사진 주소들 (유지)
+let pickedFiles = [];     // 이번에 새로 고른 사진 파일들
 
 async function start() {
   if (!hasFirebase) {
@@ -130,20 +130,38 @@ async function start() {
   });
 
   // 사진 파일 고르면 미리보기
+  // 사진을 고르면 기존에 고른 것 뒤에 이어 붙임 (여러 번 나눠 골라도 됨)
   $("nImageFile").addEventListener("change", (e) => {
-    const file = e.target.files && e.target.files[0];
-    pickedFile = file || null;
-    const box = $("imgPreview");
-    if (!file) { box.innerHTML = editingImageUrl ? previewImg(editingImageUrl) : ""; return; }
-    box.innerHTML = previewImg(URL.createObjectURL(file));
+    const files = Array.from(e.target.files || []);
+    pickedFiles = pickedFiles.concat(files);
+    e.target.value = "";   // 같은 파일 다시 고를 수 있게 비움
+    renderImgPreview();
   });
 
-  function previewImg(src) {
-    return `<img src="${src}" alt="미리보기" style="max-width:100%;border-radius:14px;border:2px solid #e5ddcb;" />`;
+  // 미리보기: 기존 사진 + 새로 고른 사진을 썸네일로, 각자 ✕로 뺄 수 있음
+  function renderImgPreview() {
+    const box = $("imgPreview");
+    box.innerHTML = "";
+    existingImages.forEach((url, i) => {
+      box.appendChild(thumb(url, "기존", () => { existingImages.splice(i, 1); renderImgPreview(); }));
+    });
+    pickedFiles.forEach((file, i) => {
+      box.appendChild(thumb(URL.createObjectURL(file), "새 사진", () => { pickedFiles.splice(i, 1); renderImgPreview(); }));
+    });
+  }
+  function thumb(src, tagText, onRemove) {
+    const wrap = document.createElement("div");
+    wrap.className = "thumb";
+    const img = document.createElement("img"); img.src = src; img.alt = "미리보기";
+    const tag = document.createElement("span"); tag.className = "tag"; tag.textContent = tagText;
+    const rm = document.createElement("button"); rm.className = "rm"; rm.type = "button"; rm.textContent = "✕";
+    rm.addEventListener("click", onRemove);
+    wrap.appendChild(img); wrap.appendChild(tag); wrap.appendChild(rm);
+    return wrap;
   }
 
   async function uploadImage(file) {
-    const safeName = Date.now() + "_" + file.name.replace(/[^a-zA-Z0-9._-]/g, "");
+    const safeName = Date.now() + "_" + Math.random().toString(36).slice(2, 7) + "_" + file.name.replace(/[^a-zA-Z0-9._-]/g, "");
     const storageRef = ref(storage, "notices/" + safeName);
     await uploadBytes(storageRef, file);
     return await getDownloadURL(storageRef);
@@ -159,20 +177,29 @@ async function start() {
     if (!title || !body) return showMsg($("saveMsg"), "제목과 내용을 입력하세요.", false);
 
     $("saveBtn").disabled = true;
-    showMsg($("saveMsg"), pickedFile ? "사진을 올리는 중이에요…" : "저장하는 중이에요…", true);
+    showMsg($("saveMsg"), pickedFiles.length ? "사진을 올리는 중이에요…" : "저장하는 중이에요…", true);
 
     try {
-      let imageUrl = editingImageUrl;
-      if (pickedFile) imageUrl = await uploadImage(pickedFile);
+      // 새로 고른 사진들을 하나씩 업로드
+      const uploaded = [];
+      for (let i = 0; i < pickedFiles.length; i++) {
+        if (pickedFiles.length > 1) {
+          showMsg($("saveMsg"), `사진을 올리는 중이에요… (${i + 1}/${pickedFiles.length})`, true);
+        }
+        uploaded.push(await uploadImage(pickedFiles[i]));
+      }
+      // 유지한 기존 사진 + 새 사진
+      const images = existingImages.concat(uploaded);
+      const imageUrl = images[0] || "";   // 옛 버전 호환(목록 썸네일 등)
 
       if (editingId) {
         await updateDoc(doc(db, "notices", editingId), {
-          title, body, imageUrl, links, date, pinned, updatedAt: serverTimestamp(),
+          title, body, images, imageUrl, links, date, pinned, updatedAt: serverTimestamp(),
         });
         showMsg($("saveMsg"), "공지를 수정했어요! ✏️", true);
       } else {
         await addDoc(collection(db, "notices"), {
-          title, body, imageUrl, links, date, pinned, createdAt: serverTimestamp(),
+          title, body, images, imageUrl, links, date, pinned, createdAt: serverTimestamp(),
         });
         showMsg($("saveMsg"), "공지를 올렸어요! 🎉", true);
       }
@@ -216,8 +243,8 @@ async function start() {
 
   function resetForm() {
     editingId = null;
-    editingImageUrl = "";
-    pickedFile = null;
+    existingImages = [];
+    pickedFiles = [];
     $("nTitle").value = "";
     $("nBody").value = "";
     $("nImageFile").value = "";
@@ -232,14 +259,17 @@ async function start() {
 
   function fillFormForEdit(id, d) {
     editingId = id;
-    editingImageUrl = d.imageUrl || "";
-    pickedFile = null;
+    // 기존 공지: images 배열이 있으면 그걸, 없으면 옛 imageUrl 1장을 사용
+    existingImages = Array.isArray(d.images) && d.images.length
+      ? d.images.slice()
+      : (d.imageUrl ? [d.imageUrl] : []);
+    pickedFiles = [];
     $("nTitle").value = d.title || "";
     $("nBody").value = d.body || "";
     $("nDate").value = d.date || new Date().toISOString().slice(0, 10);
     $("nPinned").checked = !!d.pinned;
     $("nImageFile").value = "";
-    $("imgPreview").innerHTML = editingImageUrl ? previewImg(editingImageUrl) : "";
+    renderImgPreview();
     fillLinks(d.links || []);
     $("formTitle").textContent = "공지 수정 ✏️";
     $("saveBtn").textContent = "수정 완료";
@@ -263,7 +293,7 @@ async function start() {
         item.className = "notice-item" + (done ? " notice-item--done" : "");
         item.innerHTML = `
           <div style="flex:1;">
-            <h3>${done ? "✅ " : ""}${d.pinned ? "📌 " : ""}${d.imageUrl ? "🖼️ " : ""}${escapeHtml(d.title)}</h3>
+            <h3>${done ? "✅ " : ""}${d.pinned ? "📌 " : ""}${((Array.isArray(d.images) && d.images.length) || d.imageUrl) ? "🖼️ " : ""}${escapeHtml(d.title)}</h3>
             <p class="meta">${escapeHtml(d.date || "")}${done ? " · 완료됨(유저 화면에서 숨김)" : ""}</p>
           </div>
           <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;">
@@ -285,11 +315,16 @@ async function start() {
         item.querySelector(".btn-danger").addEventListener("click", async () => {
           if (!confirm("이 공지를 삭제할까요?")) return;
           try {
-            if (d.imageUrl && d.imageUrl.includes("firebasestorage")) {
-              try {
-                const path = decodeURIComponent(d.imageUrl.split("/o/")[1].split("?")[0]);
-                await deleteObject(ref(storage, path));
-              } catch (_) {}
+            // 이 공지에 딸린 사진들(여러 장 + 옛 1장)을 Storage에서 지움
+            const urls = (Array.isArray(d.images) && d.images.length) ? d.images.slice() : [];
+            if (d.imageUrl && !urls.includes(d.imageUrl)) urls.push(d.imageUrl);
+            for (const u of urls) {
+              if (u && u.includes("firebasestorage")) {
+                try {
+                  const path = decodeURIComponent(u.split("/o/")[1].split("?")[0]);
+                  await deleteObject(ref(storage, path));
+                } catch (_) {}
+              }
             }
             await deleteDoc(doc(db, "notices", docSnap.id));
             if (editingId === docSnap.id) resetForm();

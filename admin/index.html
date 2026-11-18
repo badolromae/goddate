@@ -55,6 +55,18 @@
     .btn-danger { background:#d05a5a; font-size:15px; padding:8px 16px; }
     .btn-edit { background:var(--peach); font-size:15px; padding:8px 16px; }
     .btn-done { background:#5a9d6b; font-size:15px; padding:8px 16px; }
+    .img-preview { display:flex; flex-wrap:wrap; gap:8px; }
+    .img-preview .thumb { position:relative; width:84px; height:84px; }
+    .img-preview .thumb img { width:100%; height:100%; object-fit:cover; border-radius:12px; border:2px solid #e5ddcb; }
+    .img-preview .thumb .rm {
+      position:absolute; top:-7px; right:-7px; width:24px; height:24px; border-radius:50%;
+      border:2px solid #fff; background:#d05a5a; color:#fff; font-size:13px; cursor:pointer;
+      display:flex; align-items:center; justify-content:center; padding:0; line-height:1;
+    }
+    .img-preview .thumb .tag {
+      position:absolute; bottom:4px; left:4px; background:rgba(31,63,168,0.85); color:#fff;
+      font-size:11px; padding:1px 6px; border-radius:8px;
+    }
     .notice-item--done { opacity:0.62; }
     .linkrow { display:flex; gap:8px; margin-bottom:8px; }
     .linkrow .linkTitle { flex:0 0 40%; }
@@ -190,12 +202,12 @@
         <input id="nTitle" type="text" placeholder="공지 제목을 입력하세요" />
         <label>내용</label>
         <textarea id="nBody" placeholder="공지 내용을 입력하세요.&#10;줄바꿈도 그대로 보여져요.&#10;주소(https://...)를 적으면 링크로 눌러서 이동할 수 있어요."></textarea>
-        <label>사진 <span style="font-weight:400;font-size:15px;color:#8a8272;">(선택 · 없으면 비워두세요)</span></label>
-        <input id="nImageFile" type="file" accept="image/*" />
+        <label>사진 <span style="font-weight:400;font-size:15px;color:#8a8272;">(선택 · 여러 장 가능)</span></label>
+        <input id="nImageFile" type="file" accept="image/*" multiple />
         <p style="font-size:14px;color:#8a8272;margin-top:6px;line-height:1.5;">
-          💡 휴대폰이나 컴퓨터에서 사진 파일을 고르면 공지에 함께 올라가요.
+          💡 사진을 한 번에 여러 장 골라도 돼요. 추가로 더 고르면 뒤에 이어 붙고, 각 사진의 ✕로 뺄 수 있어요.
         </p>
-        <div id="imgPreview" style="margin-top:10px;"></div>
+        <div id="imgPreview" class="img-preview" style="margin-top:10px;"></div>
 
         <label>링크 버튼 <span style="font-weight:400;font-size:15px;color:#8a8272;">(선택 · 제목과 주소를 넣으면 공지에 버튼으로 떠요)</span></label>
         <div class="linkrow">
