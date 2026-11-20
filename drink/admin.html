@@ -126,19 +126,17 @@ table.gt td:first-child,table.gt th:first-child{text-align:left;font-weight:700}
   .pr-t th{background:#EEF4EF}
   .pr-t td.c{text-align:center}
   .pr-t tr{break-inside:avoid}
-  /* A4 QR */
-  .pq{width:210mm;height:296mm;padding:16mm;display:flex;flex-direction:column;align-items:center;box-sizing:border-box}
-  .pq-in{flex:1;width:100%;border:1.4pt solid #1F5A3F;border-radius:8mm;display:flex;flex-direction:column;align-items:center;padding:20mm 14mm 12mm;position:relative}
-  .pq-in::before{content:"";position:absolute;inset:2.5mm;border:.5pt solid #1F5A3F;border-radius:6mm;opacity:.6}
-  .pq-eye{letter-spacing:.45em;font-size:12pt;color:#1F5A3F;margin:0;padding-left:.45em}
-  .pq-cup{width:16mm;height:16mm;margin:5mm 0 2mm}
-  .pq-title{font-family:var(--title);font-size:26pt;margin:2mm 0 0;text-align:center;word-break:keep-all;max-width:150mm}
-  .pq-date{font-size:12pt;color:#555;margin:2mm 0 8mm}
-  .pq-qr{padding:5mm;border:.6pt solid #B8CDBD;border-radius:4mm}
-  .pq-qr img,.pq-qr canvas{width:105mm!important;height:105mm!important;display:block}
-  .pq-steps{list-style:none;padding:0;margin:auto 0 0;display:grid;grid-template-columns:repeat(3,1fr);gap:5mm;width:100%;max-width:155mm}
-  .pq-steps li{text-align:center;font-size:11.5pt;line-height:1.45;word-break:keep-all}
-  .pq-steps b{display:block;width:8mm;height:8mm;margin:0 auto 2mm;border-radius:50%;background:#1F5A3F;color:#fff;line-height:8mm;font-size:12pt}
+  /* A4 QR — 'QR 크게 띄우기' 화면과 같은 모양 */
+  .pq{width:210mm;height:296mm;box-sizing:border-box;padding:26mm 20mm 22mm;display:flex;flex-direction:column;align-items:center;text-align:center;
+      background:#163327 !important;color:#F7F3E8 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;break-after:avoid;overflow:hidden}
+  .pq-eye{margin:0;font-size:14pt;letter-spacing:.5em;padding-left:.5em;color:#F7F3E8 !important;opacity:.85}
+  .pq-title{font-family:var(--title);font-size:34pt;font-weight:700;line-height:1.25;margin:9mm 0 0;word-break:keep-all;max-width:165mm;color:#F7F3E8 !important}
+  .pq-date{margin:3mm 0 0;font-size:13pt;color:#CFE3D3 !important}
+  .pq-qr{margin:12mm 0 0;background:#fff !important;border-radius:9mm;padding:9mm;line-height:0}
+  .pq-qr img{display:none !important}
+  .pq-qr canvas{display:block !important;width:112mm !important;height:112mm !important}
+  .pq-how{margin:12mm 0 0;font-size:15pt;line-height:1.6;color:#F7F3E8 !important;word-break:keep-all}
+}
 }
 </style>
 </head>
@@ -459,11 +457,15 @@ $('#mLoadDef').addEventListener('click',async()=>{
 });
 
 /* ---------- 인쇄 ---------- */
-function printWith(html,page){
+// 폰(안드로이드)에서는 인쇄 창이 뜨기 전에 '인쇄 끝' 신호가 먼저 와서 내용이 비는 문제가 있어,
+// 인쇄용 내용은 지우지 않고 다음 인쇄 때 바꿔 끼웁니다 (화면에는 안 보임).
+let pageStyle=null;
+function printWith(html,page,after){
   $('#printArea').innerHTML=html;
-  const st=document.createElement('style'); st.textContent='@page{size:A4 portrait;margin:'+page+'}'; document.head.appendChild(st);
-  const done=()=>{ st.remove(); $('#printArea').innerHTML=''; removeEventListener('afterprint',done); };
-  addEventListener('afterprint',done); setTimeout(()=>window.print(),400);
+  if(pageStyle) pageStyle.remove();
+  pageStyle=document.createElement('style'); pageStyle.textContent='@page{size:A4 portrait;margin:'+page+'}'; document.head.appendChild(pageStyle);
+  if(after) after();
+  setTimeout(()=>window.print(),700);
 }
 $('#printSum').addEventListener('click',()=>{
   const G=showG(), S=showS(), list=filtered(), n=list.length||1, tl=tallyOf(list);
@@ -484,11 +486,11 @@ $('#printSum').addEventListener('click',()=>{
   printWith(h,'12mm');
 });
 $('#printQr').addEventListener('click',()=>{
-  printWith('<div class="pq"><div class="pq-in"><p class="pq-eye">CHOOSE ONE</p>'+
-    '<svg class="pq-cup" viewBox="0 0 48 48" fill="none" stroke="#1F5A3F" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="24" cy="24" r="17"/><path d="M16 24.5l5.5 5.5 11-12"/></svg>'+
-    '<h1 class="pq-title">'+esc(cur.title||'선택하기')+'</h1><p class="pq-date">'+esc(fmtDate(cur.date))+'</p><div class="pq-qr" id="pqQr"></div>'+
-    '<ol class="pq-steps"><li><b>1</b>휴대폰 카메라로<br>QR을 비춰 주세요</li><li><b>2</b>열리는 화면에<br>이름을 적고</li><li><b>3</b>하나를 고르고<br>선택 완료!</li></ol></div></div>','0');
-  new QRCode($('#pqQr'),{text:orderUrl(cur.id),width:1000,height:1000,colorDark:'#123024',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.H});
+  printWith('<div class="pq"><p class="pq-eye">CHOOSE ONE</p>'+
+    '<h1 class="pq-title">'+esc(cur.title||'선택하기')+'</h1>'+(cur.date?'<p class="pq-date">'+esc(fmtDate(cur.date))+'</p>':'')+
+    '<div class="pq-qr" id="pqQr"></div>'+
+    '<p class="pq-how">폰 카메라로 QR을 찍고 → 이름 쓰고 → 하나 고르기</p></div>','0',
+    ()=>new QRCode($('#pqQr'),{text:orderUrl(cur.id),width:900,height:900,colorDark:'#163327',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.H}));
 });
 $('#csv').addEventListener('click',()=>{
   const G=showG(), S=showS();
