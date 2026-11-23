@@ -1,0 +1,17 @@
+{
+  "id": "/goddate/manage/",
+  "name": "갓데이트 관리",
+  "short_name": "갓데이트 관리",
+  "description": "공지 관리 · 출석부 관리 · 선택 신청 관리를 한곳에서",
+  "start_url": "./",
+  "scope": "../",
+  "display": "standalone",
+  "background_color": "#CE5974",
+  "theme_color": "#CE5974",
+  "lang": "ko",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
