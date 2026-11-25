@@ -124,13 +124,14 @@ function renderMenu(){
   $('#hint').textContent=cur?'선택: '+cur.name:'하나를 골라 주세요';
 }
 const GW=()=>(((sess&&sess.groupWord)||'').trim()||'조');
+const gName=g=>{ const v=String(((sess&&sess.groupNames)||[])[+g-1]||'').trim(); return v||(g+GW()); };
 const eul=w=>{ const c=w.charCodeAt(w.length-1)-0xAC00; return w+(c>=0&&c<11172&&c%28!==0?'을':'를'); };
 function renderAsks(){
   $('#gwCat').textContent=GW(); $('#askG').hidden=!sess.askGroup; $('#askS').hidden=!sess.askGender;
   const n=Math.min(10,Math.max(1,parseInt(sess.groupCount,10)||10));
   if(grp&&+grp>n) grp='';
-  $('#gpick').style.gridTemplateColumns='repeat('+Math.min(5,n)+',1fr)';
-  $('#gpick').innerHTML=Array.from({length:n},(_,k)=>String(k+1)).map(g=>'<button data-g="'+g+'" aria-pressed="'+(grp===g)+'">'+g+GW()+'</button>').join('');
+  $('#gpick').style.gridTemplateColumns='repeat('+Math.min(((sess.groupNames||[]).some(x=>String(x||'').trim())?3:5),n)+',1fr)';
+  $('#gpick').innerHTML=Array.from({length:n},(_,k)=>String(k+1)).map(g=>'<button data-g="'+g+'" aria-pressed="'+(grp===g)+'">'+esc(gName(g))+'</button>').join('');
   document.querySelectorAll('#spick button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.s===gen));
 }
 $('#gpick').addEventListener('click',e=>{ const b=e.target.closest('[data-g]'); if(!b) return; grp=b.dataset.g; renderAsks(); });
@@ -142,7 +143,7 @@ function render(){
   if(mine && !editing){
     $('#who').textContent=mine.name+' 님 선택 완료';
     $('#what').textContent=mine.item;
-    $('#tags').innerHTML=(mine.group?'<span>'+esc(mine.group)+esc(GW())+'</span>':'')+(mine.gender?'<span>'+esc(mine.gender)+'</span>':'');
+    $('#tags').innerHTML=(mine.group?'<span>'+esc(gName(mine.group))+'</span>':'')+(mine.gender?'<span>'+esc(mine.gender)+'</span>':'');
     $('#when').textContent=mine.at&&mine.at.toDate?mine.at.toDate().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})+' 접수':'';
     $('#doneBtns').hidden=sess.open===false;
     show('done'); return;

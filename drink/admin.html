@@ -190,8 +190,9 @@ table.gt td:first-child,table.gt th:first-child{text-align:left;font-weight:700}
         <div class="asks">
           <span class="muted">참여자에게 추가로 묻기</span>
           <label><input type="checkbox" id="askGroup"> <span class="gwT">조</span> 선택</label>
-          <span id="gwBox" hidden><input id="groupWord" list="gwList" maxlength="8" placeholder="조" aria-label="묶음 이름 (조·팀·반 등)" style="width:84px;border:1px solid var(--line);border-radius:999px;padding:6px 10px;background:inherit;color:inherit;font:inherit"><datalist id="gwList"><option value="조"><option value="팀"><option value="반"><option value="테이블"><option value="구역"><option value="순"><option value="학년"></datalist></span>
+          <span id="gwBox" hidden><input id="groupWord" list="gwList" maxlength="8" placeholder="조" title="질문 제목 (예: 조, 직책, 팀)" aria-label="질문 제목 (예: 조, 직책, 팀)" style="width:110px;border:1px solid var(--line);border-radius:999px;padding:6px 10px;background:inherit;color:inherit;font:inherit"><datalist id="gwList"><option value="조"><option value="팀"><option value="반"><option value="테이블"><option value="구역"><option value="순"><option value="학년"><option value="직책"><option value="역할"></datalist></span>
           <select id="groupCount" aria-label="개수" hidden><option value="1">1~1조</option><option value="2">1~2조</option><option value="3">1~3조</option><option value="4">1~4조</option><option value="5">1~5조</option><option value="6">1~6조</option><option value="7">1~7조</option><option value="8">1~8조</option><option value="9">1~9조</option><option value="10">1~10조</option></select>
+          <div id="gnBox" hidden style="flex-basis:100%;display:flex;flex-wrap:wrap;align-items:center;gap:6px"><span class="muted" style="font-size:13px">선택지 이름 <small>(비워 두면 1<span class="gwT">조</span>, 2<span class="gwT">조</span>…)</small></span><span id="gnInputs" style="display:contents"></span></div>
           <label><input type="checkbox" id="askGender"> 성별 선택 <small>(형제·자매)</small></label>
         </div>
       </div>
@@ -292,7 +293,7 @@ onAuthStateChanged(auth,u=>{
     unList=onSnapshot(query(collection(db,'drink_sessions'),orderBy('createdAt','desc')),s=>{
       const ss=s.docs.map(d=>({id:d.id,...d.data()}));
       lastMenu=(ss.find(x=>x.menu&&x.menu.length)||{}).menu||null;
-      lastAsk=ss[0]?{g:ss[0].askGroup,s:ss[0].askGender,n:ss[0].groupCount,w:ss[0].groupWord||''}:{};
+      lastAsk=ss[0]?{g:ss[0].askGroup,s:ss[0].askGender,n:ss[0].groupCount,w:ss[0].groupWord||'',nm:ss[0].groupNames||[]}:{};
       $('#slist').innerHTML=ss.length?ss.map(x=>'<li><button data-id="'+x.id+'"><span><span class="t">'+esc(x.title||'제목 없음')+'</span> <span class="chip'+(x.open===false?' off':'')+'">'+(x.open===false?'마감':'받는 중')+'</span></span><span class="d">'+fmtDate(x.date)+'</span></button></li>').join(''):'<li class="empty">아직 만든 것이 없습니다. 위에 제목을 적고 새로 받아 보세요.</li>';
     },e=>{
       if(e.code==='permission-denied'){ notStaff=true; if(unList){unList();unList=null;} closeSess(); show('login'); $('#loginMsg').innerHTML='<p class="msg warn">관리자 계정이 아닙니다. 관리자 계정으로 로그인해 주세요.</p>'; }
@@ -309,7 +310,7 @@ $('#create').addEventListener('click',async()=>{
     let menu=null;
     try{ const d=await getDoc(doc(db,'drink_settings','menu')); if(d.exists()) menu=d.data().items; }catch(e){}
     menu=(menu&&menu.length?menu:(lastMenu||DEFAULT_MENU)).map(m=>({...m,soldout:false}));
-    const r=await addDoc(collection(db,'drink_sessions'),{title,date:todayStr(),open:true,menu,askGroup:!!lastAsk.g,askGender:!!lastAsk.s,groupCount:lastAsk.n||10,groupWord:lastAsk.w||'',createdAt:serverTimestamp()});
+    const r=await addDoc(collection(db,'drink_sessions'),{title,date:todayStr(),open:true,menu,askGroup:!!lastAsk.g,askGender:!!lastAsk.s,groupCount:lastAsk.n||10,groupWord:lastAsk.w||'',groupNames:lastAsk.nm||[],createdAt:serverTimestamp()});
     $('#newTitle').value=''; location.hash='s='+r.id;
   }catch(e){ toast('만들지 못했습니다',true); }
   $('#create').disabled=false;
@@ -350,8 +351,11 @@ const showS=()=>!!(cur&&(cur.askGender||orders.some(o=>o.gender)));
 const GW=()=>(((cur&&cur.groupWord)||'').trim()||'조');
 const hasB=w=>{ const c=w.charCodeAt(w.length-1)-0xAC00; return c>=0&&c<11172&&c%28!==0; };
 const eul=w=>w+(hasB(w)?'을':'를'), ro=w=>{ const c=w.charCodeAt(w.length-1)-0xAC00; return w+(c>=0&&c<11172&&c%28!==0&&c%28!==8?'으로':'로'); };
-function applyGW(){ const w=GW(); document.querySelectorAll('.gwT').forEach(e=>e.textContent=w); document.querySelectorAll('.gwT2').forEach(e=>e.textContent=w+' 순'); $('#groupCount').querySelectorAll('option').forEach(o=>o.textContent='1~'+o.value+w); $('#fGroup').setAttribute('aria-label',w+' 필터'); $('#gwBox').hidden=!(cur&&cur.askGroup); if(document.activeElement!==$('#groupWord')) $('#groupWord').value=(cur&&cur.groupWord)||''; }
-const gLabel=g=>g?g+GW():'';
+function renderGN(){ const box=$('#gnBox'); box.hidden=!(cur&&cur.askGroup); if(box.hidden) return; const n=gCount(), nm=(cur&&cur.groupNames)||[]; if(box.contains(document.activeElement)&&$('#gnInputs').children.length===n) return;
+  $('#gnInputs').innerHTML=Array.from({length:n},(_,k)=>'<input data-gi="'+k+'" maxlength="12" value="'+esc(nm[k]||'')+'" placeholder="'+(k+1)+esc(GW())+'" aria-label="'+(k+1)+'번 선택지 이름" style="width:96px;border:1px solid var(--line);border-radius:999px;padding:6px 10px;background:inherit;color:inherit;font:inherit">').join(''); }
+function applyGW(){ const w=GW(); document.querySelectorAll('.gwT').forEach(e=>e.textContent=w); document.querySelectorAll('.gwT2').forEach(e=>e.textContent=w+' 순'); $('#groupCount').querySelectorAll('option').forEach(o=>o.textContent='선택지 '+o.value+'개'); renderGN(); $('#fGroup').setAttribute('aria-label',w+' 필터'); $('#gwBox').hidden=!(cur&&cur.askGroup); if(document.activeElement!==$('#groupWord')) $('#groupWord').value=(cur&&cur.groupWord)||''; }
+const gName=g=>{ const n=(cur&&cur.groupNames)||[]; const v=String(n[+g-1]||'').trim(); return v||(g+GW()); };
+const gLabel=g=>g?gName(g):'';
 function filtered(){
   const fg=$('#fGroup').value, fs=$('#fGender').value;
   return orders.filter(o=>(!fg||(fg==='-'?!o.group:o.group===fg))&&(!fs||o.gender===fs));
@@ -378,7 +382,7 @@ function renderOrders(){
   if(!cur) return;
   const G=showG(), S=showS();
   $('#filters').hidden=!(G||S); $('#fGroup').hidden=!G; $('#fGender').hidden=!S;
-  { const fv=$('#fGroup').value, gs=groupsNow(); $('#fGroup').innerHTML='<option value="">'+GW()+' 전체</option>'+gs.map(g=>'<option value="'+g+'">'+g+GW()+'</option>').join('')+'<option value="-">'+GW()+' 없음</option>'; $('#fGroup').value=(fv===''||fv==='-'||gs.includes(fv))?fv:''; }
+  { const fv=$('#fGroup').value, gs=groupsNow(); $('#fGroup').innerHTML='<option value="">'+GW()+' 전체</option>'+gs.map(g=>'<option value="'+g+'">'+esc(gName(g))+'</option>').join('')+'<option value="-">'+GW()+' 없음</option>'; $('#fGroup').value=(fv===''||fv==='-'||gs.includes(fv))?fv:''; }
   const list=filtered();
   $('#count').textContent=list.length;
   $('#bigCount').textContent='지금까지 '+orders.length+'명 선택';
@@ -388,7 +392,7 @@ function renderOrders(){
   if(G&&list.length){
     const {items,rows}=groupTable(list);
     $('#gtable').innerHTML='<thead><tr><th>'+GW()+'</th><th>인원</th>'+items.map(i=>'<th>'+esc(i)+'</th>').join('')+'</tr></thead><tbody>'+
-      rows.map(r=>'<tr><td>'+(r.g?r.g+GW():GW()+' 없음')+'</td><td><b>'+r.l.length+'</b></td>'+items.map(i=>{ const c=r.l.filter(o=>o.item===i).length; return '<td>'+(c||'·')+'</td>'; }).join('')+'</tr>').join('')+'</tbody>';
+      rows.map(r=>'<tr><td>'+(r.g?gName(r.g):GW()+' 없음')+'</td><td><b>'+r.l.length+'</b></td>'+items.map(i=>{ const c=r.l.filter(o=>o.item===i).length; return '<td>'+(c||'·')+'</td>'; }).join('')+'</tr>').join('')+'</tbody>';
   }
   const l=sortedOrders();
   $('#olist').innerHTML=orders.length?'<thead><tr><th>✓</th><th>번호</th><th>이름</th>'+(G?'<th>'+GW()+'</th>':'')+(S?'<th>성별</th>':'')+'<th>선택 항목</th><th>시간</th><th></th></tr></thead><tbody>'+
@@ -400,7 +404,8 @@ $('#fGroup').addEventListener('change',renderOrders);
 $('#fGender').addEventListener('change',renderOrders);
 $('#askGroup').addEventListener('change',e=>updateDoc(doc(db,'drink_sessions',cur.id),{askGroup:e.target.checked}).then(()=>toast(e.target.checked?'참여 화면에 '+GW()+' 선택을 추가했습니다':GW()+' 선택을 뺐습니다')).catch(()=>toast('바꾸지 못했습니다',true)));
 $('#groupWord').addEventListener('change',e=>{ const w=e.target.value.trim().slice(0,8); updateDoc(doc(db,'drink_sessions',cur.id),{groupWord:w}).then(()=>toast('이제 \''+(w||'조')+'\' 단위로 받습니다')).catch(()=>toast('바꾸지 못했습니다',true)); });
-$('#groupCount').addEventListener('change',e=>updateDoc(doc(db,'drink_sessions',cur.id),{groupCount:+e.target.value}).then(()=>toast(eul(GW())+' 1~'+ro(e.target.value+GW())+' 정했습니다')).catch(()=>toast('바꾸지 못했습니다',true)));
+$('#gnBox').addEventListener('change',e=>{ const t=e.target.closest('[data-gi]'); if(!t||!cur) return; const n=gCount(); const nm=Array.from({length:n},(_,k)=>String(((cur.groupNames||[])[k])||'')); nm[+t.dataset.gi]=t.value.trim().slice(0,12); updateDoc(doc(db,'drink_sessions',cur.id),{groupNames:nm}).then(()=>toast('선택지 이름을 저장했습니다')).catch(()=>toast('바꾸지 못했습니다',true)); });
+$('#groupCount').addEventListener('change',e=>updateDoc(doc(db,'drink_sessions',cur.id),{groupCount:+e.target.value}).then(()=>toast('선택지를 '+e.target.value+'개로 정했습니다')).catch(()=>toast('바꾸지 못했습니다',true)));
 $('#askGender').addEventListener('change',e=>updateDoc(doc(db,'drink_sessions',cur.id),{askGender:e.target.checked}).then(()=>toast(e.target.checked?'참여 화면에 성별 선택을 추가했습니다':'성별 선택을 뺐습니다')).catch(()=>toast('바꾸지 못했습니다',true)));
 $('#sort').addEventListener('change',renderOrders);
 $('#onlyTodo').addEventListener('change',renderOrders);
@@ -475,7 +480,7 @@ function printWith(html,page,after){
 }
 $('#printSum').addEventListener('click',()=>{
   const G=showG(), S=showS(), list=filtered(), n=list.length||1, tl=tallyOf(list);
-  const fl=[$('#fGroup').value?($('#fGroup').value==='-'?GW()+' 없음':$('#fGroup').value+GW()):'',$('#fGender').value].filter(Boolean).join(' · ');
+  const fl=[$('#fGroup').value?($('#fGroup').value==='-'?GW()+' 없음':gName($('#fGroup').value)):'',$('#fGender').value].filter(Boolean).join(' · ');
   const l=[...list].sort(G?(a,b)=>(a.group?+a.group:99)-(b.group?+b.group:99)||a.name.localeCompare(b.name,'ko'):(a,b)=>a.name.localeCompare(b.name,'ko'));
   const now=new Date().toLocaleString('ko-KR',{month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'});
   let h='<p class="pr-h">'+esc(cur.title||'선택 현황')+'</p><p class="pr-s">'+esc(fmtDate(cur.date))+(fl?' · '+esc(fl):'')+' · 총 '+list.length+'명 · 출력 '+now+'</p>'+
@@ -485,7 +490,7 @@ $('#printSum').addEventListener('click',()=>{
   if(G&&list.length){
     const {items,rows}=groupTable(list);
     h+='<p class="pr-sec">'+GW()+'별 현황</p><table class="pr-t"><thead><tr><th>'+GW()+'</th><th class="c">인원</th>'+items.map(i=>'<th class="c">'+esc(i)+'</th>').join('')+'</tr></thead><tbody>'+
-      rows.map(r=>'<tr><td><b>'+(r.g?r.g+GW():GW()+' 없음')+'</b></td><td class="c"><b>'+r.l.length+'</b></td>'+items.map(i=>'<td class="c">'+(r.l.filter(o=>o.item===i).length||'')+'</td>').join('')+'</tr>').join('')+'</tbody></table>';
+      rows.map(r=>'<tr><td><b>'+(r.g?gName(r.g):GW()+' 없음')+'</b></td><td class="c"><b>'+r.l.length+'</b></td>'+items.map(i=>'<td class="c">'+(r.l.filter(o=>o.item===i).length||'')+'</td>').join('')+'</tr>').join('')+'</tbody></table>';
   }
   h+='<p class="pr-sec">신청자 명단 ('+(G?GW()+' · 이름 순':'이름 순')+')</p><table class="pr-t"><thead><tr><th class="c">번호</th><th>이름</th>'+(G?'<th class="c">'+GW()+'</th>':'')+(S?'<th class="c">성별</th>':'')+'<th>선택 항목</th><th class="c">✓</th></tr></thead><tbody>'+
     l.map((o,i)=>'<tr><td class="c">'+(i+1)+'</td><td><b>'+esc(o.name)+'</b></td>'+(G?'<td class="c">'+gLabel(o.group)+'</td>':'')+(S?'<td class="c">'+(o.gender||'')+'</td>':'')+'<td>'+esc(o.item)+'</td><td class="c">'+(o.done?'✓':'')+'</td></tr>').join('')+'</tbody></table>';
